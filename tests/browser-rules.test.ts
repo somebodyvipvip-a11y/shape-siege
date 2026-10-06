@@ -211,3 +211,19 @@ it('renders polygon terrain using the same vertices as collision', () => {
   expect(calls.some(call => call.name === 'fillPoints' && call.args[0] === obstacle.vertices)).toBe(true);
   expect(calls.some(call => call.name === 'strokePoints' && call.args[0] === obstacle.vertices)).toBe(true);
 });
+
+
+it('armed exploders and danger rings pulse over time, while reduced motion stays static', () => {
+  const world = new GameWorld('circle');
+  const source = world.spawnEnemy('exploder', { x: 1700, y: 1600 })!; world.damage(source, 1, 'active', false);
+  function orangeLines(time: number, reducedMotion: boolean): unknown[][] {
+    world.state.time = time;
+    const calls: unknown[][] = [];
+    const graphics = new Proxy({}, { get: (_target, name) => (...args: unknown[]) => { if (name === 'lineStyle' && args[1] === 0xffa568) calls.push(args); return graphics; } }) as Phaser.GameObjects.Graphics;
+    drawWorld(graphics, graphics, world.state, { ...defaultSave().settings, reducedMotion });
+    return calls;
+  }
+  expect(orangeLines(0, false)).not.toEqual(orangeLines(1 / 3, false));
+  expect(orangeLines(0, true)).toEqual(orangeLines(1 / 3, true));
+  expect(orangeLines(1 / 3, false).every(args => Number(args[2]) > 0)).toBe(true);
+});

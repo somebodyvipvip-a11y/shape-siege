@@ -33,7 +33,8 @@ export function drawNumber(g: Graphics, x: number, y: number, value: number, hei
 }
 function enemy(g: Graphics, e: Enemy, time: number, reduced: boolean): void {
   const color = e.kind === 'exploder' ? PALETTE.explosion : e.burn ? 0xffa568 : e.slowTime > 0 ? 0x91cfff : PALETTE.enemy;
-  g.fillStyle(0x311e35, 1); g.lineStyle(e.kind === 'boss' ? 3 : 2, color, 1);
+  const pulse = e.kind === 'exploder' && e.explosionArmed && !reduced ? .65 + .35 * Math.cos(time * Math.PI * 3) : 1;
+  g.fillStyle(0x311e35, 1); g.lineStyle(e.kind === 'boss' ? 3 : 2, color, pulse);
   if (e.kind === 'boss') {
     polygon(g, e.x, e.y, e.radius, 6, reduced ? 0 : time * .2);
     polygon(g, e.x, e.y, e.radius * .7, 6, reduced ? 0 : -time * .35, false);
@@ -109,8 +110,9 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
   }
   for (const explosion of state.explosions) {
     if (!visible(explosion, explosion.radius)) continue;
-    danger.fillStyle(PALETTE.explosion, .07); danger.fillCircle(explosion.x, explosion.y, explosion.radius);
-    danger.lineStyle(2, PALETTE.explosion, .9); dashedCircle(danger, explosion.x, explosion.y, explosion.radius);
+    const pulse = settings.reducedMotion ? 1 : .65 + .35 * Math.cos(state.time * Math.PI * 3);
+    danger.fillStyle(PALETTE.explosion, .03 + .04 * pulse); danger.fillCircle(explosion.x, explosion.y, explosion.radius);
+    danger.lineStyle(2, PALETTE.explosion, .55 + .35 * pulse); dashedCircle(danger, explosion.x, explosion.y, explosion.radius);
     danger.beginPath(); danger.arc(explosion.x, explosion.y, explosion.radius - 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, 1 - explosion.remaining / EXPLOSION.fuse)); danger.strokePath();
     drawNumber(danger, explosion.x, explosion.y - 26, explosion.remaining, 13);
   }
