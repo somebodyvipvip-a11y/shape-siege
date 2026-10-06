@@ -6,11 +6,11 @@ import { browserSave, type Settings } from './storage';
 import type { BattleRenderer } from './render/scene';
 import { menuHTML } from './ui/menu';
 import { HUD, hudHTML } from './ui/hud';
-import { confirmLeaveHTML, giftHTML, helpHTML, loadingHTML, pauseHTML, resultHTML, settingsHTML, upgradeHTML } from './ui/overlays';
+import { confirmLeaveHTML, giftHTML, helpHTML, loadingHTML, pauseHTML, resultHTML, settingsHTML, statsHTML, upgradeHTML } from './ui/overlays';
 import { escapeHTML, icon } from './ui/shared';
 import { handleDialogEscape } from './ui/dialog-input';
 
-type Panel = 'none' | 'pause' | 'upgrade' | 'gift' | 'result' | 'settings' | 'help' | 'leave' | 'loading' | 'error';
+type Panel = 'none' | 'pause' | 'upgrade' | 'gift' | 'result' | 'settings' | 'help' | 'leave' | 'loading' | 'error' | 'stats';
 export class GameApp {
   private save = browserSave();
   private audio = new GameAudio(this.save.data.settings);
@@ -150,6 +150,14 @@ export class GameApp {
     if (this.world.state.pendingUpgrades > 0) { this.setPanel('upgrade', upgradeHTML(this.world.state, this.rewards[0] ?? false)); return; }
     this.world.setPaused(false); this.setPanel('none'); this.requestMusic();
   }
+  /** 完整属性面板：电脑 Tab、手机 HUD「属性」按钮均可开关；打开时暂停战斗。 */
+  private toggleStats(): void {
+    if (!this.world || this.starting || this.world.state.result) return;
+    if (this.panel === 'stats') { this.world.setPaused(false); this.setPanel('none'); this.requestMusic(); return; }
+    if (this.panel !== 'none') return;
+    this.world.setPaused(true);
+    this.setPanel('stats', statsHTML(this.world.state));
+  }
   private stopAudio(): void { this.audioGeneration++; this.audio.stop(); }
   private requestMusic(ready = this.audio.unlock()): void {
     const generation = this.generation, audioGeneration = this.audioGeneration, world = this.world;
@@ -200,6 +208,7 @@ export class GameApp {
       case 'start-help': case 'restart': case 'retry': void this.start(true); break;
       case 'pause': this.pause(); break;
       case 'resume': this.resume(); break;
+      case 'stats': this.toggleStats(); break;
       case 'menu': this.showMenu(); break;
       case 'leave': this.setPanel('leave', confirmLeaveHTML()); break;
       case 'settings': case 'help': {
@@ -232,6 +241,13 @@ export class GameApp {
   }
   private applySettings(): void { this.audio.configure(this.save.data.settings); document.documentElement.classList.toggle('reduced-motion', this.save.data.settings.reducedMotion); }
   private dialogKey(event: KeyboardEvent): void {
+    // 属性面板：战斗中 Tab 打开，面板打开时 Tab / Esc 关闭（面板内不参与焦点循环）。
+    if (event.key === 'Tab' && this.panel === 'stats') { event.preventDefault(); this.toggleStats(); return; }
+    if (event.key === 'Tab' && this.panel === 'none') {
+      if (!this.running || !this.world || this.starting) return;
+      event.preventDefault(); this.toggleStats(); return;
+    }
+    if (this.panel === 'stats') { if (event.code === 'Escape') { event.preventDefault(); if (!event.repeat) this.toggleStats(); } return; }
     if (this.panel === 'none' || this.panel === 'loading' || this.panel === 'error') return;
     handleDialogEscape(event, this.panel, () => this.resume(), () => this.closePanel());
     if (event.key !== 'Tab') return;

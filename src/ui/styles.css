@@ -1005,6 +1005,22 @@ small {
   font-variant-numeric: tabular-nums
 }
 
+.hud-right .stats-button {
+  width: auto;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: #d8e1ee;
+  border-radius: 7px
+}
+
+.stats-hint {
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center
+}
+
 .xp-meter {
   flex: 1;
   height: 4px

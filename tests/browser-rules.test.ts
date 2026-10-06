@@ -124,7 +124,8 @@ describe('local save recovery and unlocks', () => {
     expect(validateSave({ schemaVersion: 2 })).toEqual(defaultSave());
     const save = validateSave({ schemaVersion: 1, settings: { autoSkill: 'yes', music: Infinity, sound: -1, quality: 'ultra' }, unlocked: ['triangle', 'unknown', 'triangle'], best: { kills: -3, time: 900 }, stats: null });
     expect(save.settings).toEqual(defaultSave().settings); expect(save.unlocked).toEqual(['circle', 'triangle']);
-    expect(save.best.kills).toBe(0); expect(save.best.time).toBe(720); expect(save.stats.runs).toBe(0);
+    expect(save.best.kills).toBe(0); expect(save.best.time).toBe(300); expect(save.stats.runs).toBe(0);
+    expect(save.best.bestStage).toBe(1); expect(save.stats.bestStage).toBe(1);
   });
   it.each(['{broken', 'null', '{"schemaVersion":99}'])('recovers bad JSON/schema (%s) with a useful warning', raw => {
     const store = new SaveStore({ getItem: () => raw, setItem: () => {} });
@@ -144,10 +145,18 @@ describe('local save recovery and unlocks', () => {
     store.data.settings.autoSkill = true; world.state.eliteKills = 1;
     expect(store.unlockElite(world.state)).toBe(true); expect(store.unlockElite(world.state)).toBe(false);
     expect(new SaveStore(port).data.unlocked).toContain('triangle');
-    world.state.result = 'victory'; world.state.time = 550; expect(store.finish(world.state)).toEqual(['square']);
+    world.state.result = 'victory'; world.state.time = 280; world.state.stage = 3; expect(store.finish(world.state)).toEqual(['square']);
     const reload = new SaveStore(port); expect(reload.data.settings.autoSkill).toBe(true); expect(reload.data.best.victories).toBe(1); expect(reload.data.stats.runs).toBe(1);
+    expect(reload.data.best.bestStage).toBe(3); expect(reload.data.stats.bestStage).toBe(3);
     expect(reload.warning).toBe('');
     expect(memory.get(SAVE_KEY)).toBeTruthy();
+  });
+  it('旧存档缺失新增字段时按默认值补齐，不误报为数据损坏', () => {
+    const legacy = JSON.stringify({ schemaVersion: 1, settings: defaultSave().settings, unlocked: ['circle'], best: { kills: 3, time: 120, level: 4, victories: 1 }, stats: { runs: 2, kills: 30, time: 240 } });
+    const store = new SaveStore({ getItem: () => legacy, setItem: () => {} });
+    expect(store.warning).toBe('');
+    expect(store.data.best.bestStage).toBe(1); expect(store.data.stats.bestStage).toBe(1);
+    expect(store.data.best.kills).toBe(3); expect(store.data.stats.runs).toBe(2);
   });
   it('does not record abandoned or ongoing runs as completed', () => {
     const store = new SaveStore(null), world = new GameWorld(); expect(store.finish(world.state)).toEqual([]); expect(store.data.stats.runs).toBe(0); expect(store.data.unlocked).toEqual(['circle']);

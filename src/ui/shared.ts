@@ -41,4 +41,9 @@ export function attributeRows(player: Player): { label: string; value: string }[
 export function lifeRow(player: Player): { label: string; value: string } {
   return { label: '生命', value: `${Math.ceil(player.hp)} / ${Math.round(player.maxHp)}` };
 }
+/** 常驻 HUD 精简 5 项：生命、暴击率、闪避、护甲、幸运；完整属性见 Tab 属性面板。 */
+export function hudRows(player: Player): { label: string; value: string }[] {
+  const percent = (value: number): string => `${Math.round(value * 100)}%`;
+  return [lifeRow(player), { label: '暴击率', value: percent(player.critChance) }, { label: '闪避', value: percent(player.dodge) }, { label: '护甲', value: `${Math.round(player.armor)}` }, { label: '幸运', value: `${Math.round(player.luck)}` }];
+}
 export function escapeHTML(text: string): string { return text.replace(/[&<>"']/g, value => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[value]!); }
