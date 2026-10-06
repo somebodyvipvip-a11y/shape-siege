@@ -2,7 +2,7 @@
 
 Shape Siege 意为“几何围攻”，是一款原创几何风格的单人浏览器生存游戏，支持电脑和手机。移动拾取经验，自动攻击怪潮，选择技能与元素构筑，突破重重包围。
 
-私有 GitHub 仓库：[somebodyvipvip-a11y/shape-siege](https://github.com/somebodyvipvip-a11y/shape-siege)。
+GitHub 仓库：[somebodyvipvip-a11y/shape-siege](https://github.com/somebodyvipvip-a11y/shape-siege)。在线游玩：[Shape Siege](https://somebodyvipvip-a11y.github.io/shape-siege/)。
 
 ## 环境与 Windows 启动
 
@@ -57,8 +57,8 @@ npm exec vite preview -- --host 0.0.0.0
 
 `.github/workflows/pages.yml` 在推送到 `main` 时安装锁定依赖、运行测试并构建 `/shape-siege/` 子路径下的生产文件。发布只上传 `dist`，无需提交构建产物。本地开发仍使用 `/`。
 
-当前发布状态：尚未上线。GitHub 返回 HTTP 422：当前账号套餐不支持此私有仓库的 Pages。仓库保持私有。
+仓库已按用户授权改为公开，并启用 GitHub Actions 作为 Pages 发布来源，仓库变量 `PAGES_ENABLED=true` 已配置。
 
-账号具备私有仓库 Pages 权限后，在仓库 **Settings → Pages → Source** 选择 **GitHub Actions**，再添加仓库 Actions 变量 `PAGES_ENABLED=true`。最后在 **Actions → Publish GitHub Pages → Run workflow** 手动运行一次；此后的 `main` 推送会自动发布。未启用该变量时，工作流只构建并保存产物，不尝试发布。
+推送到 `main` 会自动构建与发布，也可在 **Actions → Publish GitHub Pages → Run workflow** 手动运行。设置 `PAGES_ENABLED=false` 可暂停后续自动发布；这不会删除已经上线的网站。
 
-预期地址为 `https://somebodyvipvip-a11y.github.io/shape-siege/`，以成功部署后的 Actions 输出为准。私有源代码仓库的 Pages 网站仍可能公开访问，详见 [GitHub Pages 官方说明](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)。
+地址：`https://somebodyvipvip-a11y.github.io/shape-siege/`。发布结果以 Actions 的 `deploy` 任务为准，完整生产文件由 GitHub Pages 托管。
