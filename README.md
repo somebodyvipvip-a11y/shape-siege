@@ -1,6 +1,8 @@
-# 方块大战
+# Shape Siege（方块大战）
 
-原创几何风格的单人浏览器生存游戏。移动拾取经验，自动攻击怪潮，选择技能与元素构筑；击破 9 分钟出现的六边核心即获胜，最长一局 12 分钟。
+Shape Siege 意为“几何围攻”，是一款原创几何风格的单人浏览器生存游戏，支持电脑和手机。移动拾取经验，自动攻击怪潮，选择技能与元素构筑，突破重重包围。
+
+私有 GitHub 仓库：[somebodyvipvip-a11y/shape-siege](https://github.com/somebodyvipvip-a11y/shape-siege)。
 
 ## 环境与 Windows 启动
 
