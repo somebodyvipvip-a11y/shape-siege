@@ -52,3 +52,13 @@ npm exec vite preview -- --host 0.0.0.0
 - 核心模拟固定 60Hz，最多追赶 5 步；等面积视野，极端比例留边，像素比限制在 1.5（低画质 1）。低画质仅减少装饰，不改变危险与战斗判定。
 - 数值仍需持续正常试玩评估。未完成 iOS Safari、Android Chrome 真机兼容验收与后期高压场景帧耗时测量；不能据此宣称达到手机性能目标。
 - 不支持账号同步、联机、排行榜或局中存档。
+
+## GitHub Pages
+
+`.github/workflows/pages.yml` 在推送到 `main` 时安装锁定依赖、运行测试并构建 `/shape-siege/` 子路径下的生产文件。发布只上传 `dist`，无需提交构建产物。本地开发仍使用 `/`。
+
+当前发布状态：尚未上线。GitHub 返回 HTTP 422：当前账号套餐不支持此私有仓库的 Pages。仓库保持私有。
+
+账号具备私有仓库 Pages 权限后，在仓库 **Settings → Pages → Source** 选择 **GitHub Actions**，再添加仓库 Actions 变量 `PAGES_ENABLED=true`。最后在 **Actions → Publish GitHub Pages → Run workflow** 手动运行一次；此后的 `main` 推送会自动发布。未启用该变量时，工作流只构建并保存产物，不尝试发布。
+
+预期地址为 `https://somebodyvipvip-a11y.github.io/shape-siege/`，以成功部署后的 Actions 输出为准。私有源代码仓库的 Pages 网站仍可能公开访问，详见 [GitHub Pages 官方说明](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)。
