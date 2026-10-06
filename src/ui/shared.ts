@@ -5,9 +5,9 @@ const icons: Record<string, IconNode> = { arrow: ArrowRight, settings: Settings2
 export function icon(name: string): string { return createElement(icons[name] ?? CircleHelp, { width: 20, height: 20, 'aria-hidden': 'true', 'stroke-width': 1.8 }).outerHTML; }
 export const COLORS: Record<CharacterId, string> = { circle: '#63E2C3', square: '#65B8FF', triangle: '#D0A2FF' };
 export const ROLE_TEXT: Record<CharacterId, { title: string; subtitle: string; attack: string; active: string; ultimate: string; condition: string }> = {
-  circle: { title: '星环', subtitle: '轨道控制 / 均衡', attack: '两颗星球环绕，自动攻击近敌。', active: '轨道扩张', ultimate: '引力爆炸', condition: '初始解锁' },
-  square: { title: '堡垒', subtitle: '坚固护盾 / 防守', attack: '四向冲击弹，护盾稳住阵线。', active: '护盾震退', ultimate: '守护领域', condition: '完成任意一局后解锁' },
-  triangle: { title: '锋刃', subtitle: '高速穿透 / 突进', attack: '穿透飞刃，沿方向冲刺破阵。', active: '锋刃冲刺', ultimate: '径向刃雨', condition: '首次击杀阶段精英后解锁' },
+  circle: { title: '星环', subtitle: '轨道控制 / 均衡', attack: '星球环绕近敌，震荡波范围清场。', active: '轨道扩张', ultimate: '引力爆炸', condition: '初始解锁' },
+  square: { title: '堡垒', subtitle: '坚固护盾 / 防守', attack: '四向冲击与连锁闪电，护盾稳住阵线。', active: '护盾震退', ultimate: '守护领域', condition: '完成任意一局后解锁' },
+  triangle: { title: '锋刃', subtitle: '高速穿透 / 突进', attack: '穿透飞刃与回旋刃，冲刺破阵。', active: '锋刃冲刺', ultimate: '径向刃雨', condition: '首次击杀阶段精英后解锁' },
 };
 export function geometry(id: CharacterId | SkillId | string, className = ''): string {
   let path = '';

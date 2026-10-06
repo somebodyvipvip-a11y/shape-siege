@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CONFIG, DIRECTOR, ENEMY_BEHAVIOR, stageAt } from '../src/game/config';
-import { rerollCap } from '../src/game/progression';
+import { CHARACTERS, CONFIG, DIRECTOR, ENEMIES, ENEMY_BEHAVIOR, stageAt } from '../src/game/config';
+import { Progression, rerollCap } from '../src/game/progression';
 import { Director, updateEnemies } from '../src/game/director';
 import { clearPath } from '../src/game/navigation';
 import { activateSkill, activateUltimate, updateEffects, updateProjectiles, updateSkills, updateUltimate } from '../src/game/skills';
@@ -37,8 +37,8 @@ describe('经验、候选池和暂停', () => {
   });
   it('满槽、满级、行为强化和元素槽准确过滤，补充合法属性', () => {
     const world = new GameWorld('circle');
-    for (const id of ['homing', 'lightning', 'mine'] as SkillId[]) addSkill(world, id, ['fire', 'ice'], 8);
-    world.state.player.skills[0].level = 8;
+    for (const id of ['homing', 'lightning'] as SkillId[]) addSkill(world, id, ['fire', 'ice'], 8);
+    for (const skill of world.state.player.skills) skill.level = 8;
     for (const skill of world.state.player.skills) skill.enhanced = true;
     world.state.player.speedBonus = .3;
     world.state.player.cooldownReduction = .4;
@@ -323,7 +323,7 @@ describe('元素、技能与大招', () => {
     circle.state.player.energy = 100; activateUltimate(circle);
     for (let i = 0; i < 180; i++) updateUltimate(circle, CONFIG.step);
     expect(circle.state.player.energy).toBe(0); expect(boss.x).toBe(1750); expect(target.x).toBeLessThan(1700);
-    expect(boss.hp).toBe(4650);
+    expect(boss.hp).toBe(ENEMIES.boss.hp - 150);
     const triangle = new GameWorld('triangle'); triangle.state.player.energy = 100; activateUltimate(triangle);
     for (let i = 0; i < 120; i++) updateUltimate(triangle, CONFIG.step);
     expect(triangle.state.projectiles).toHaveLength(40);
@@ -361,8 +361,8 @@ describe('导演、地图事件与结算', () => {
   it('刷怪保持真实视野外的净距，出生区畅通且上限不积压补发', () => {
     const world = new GameWorld('circle', 9);
     world.setViewport(1200, 600);
-    for (let i = 0; i < 250; i++) world.spawnEnemy('chaser');
-    expect(world.state.enemies).toHaveLength(250);
+    for (let i = 0; i < CONFIG.enemyLimit; i++) world.spawnEnemy('chaser');
+    expect(world.state.enemies).toHaveLength(CONFIG.enemyLimit);
     for (const e of world.state.enemies) {
       const dx = Math.abs(e.x - 1600), dy = Math.abs(e.y - 1600);
       expect(dx >= 600 + 120 || dy >= 300 + 120).toBe(true);
@@ -396,7 +396,7 @@ describe('导演、地图事件与结算', () => {
     world.state.event = { x: e.x, y: e.y, kind: 'elite', remaining: 90, progress: 0, enemyId: e.id };
     world.damage(e, 5000, 'active'); world.debug.resolveResult();
     expect(world.state.pendingUpgrades).toBe(1); expect(world.state.eliteKills).toBe(0); expect(world.state.player.energy).toBe(20);
-    expect(world.state.pickups[0].value).toBe(40);
+    expect(world.state.pickups[0].value).toBe(ENEMIES['elite-tank'].xp * CONFIG.xpMultiplier);
   });
   it('玩家死亡优先于超时，首领被击破不再直接结算而交给关卡推进', () => {
     const dead = new GameWorld();
@@ -442,9 +442,9 @@ describe('导演、地图事件与结算', () => {
     expect(firstEvent).toBe(true); expect(secondEvent).toBe(true);
     expect([...seen]).toEqual(expect.arrayContaining(['chaser', 'runner', 'tank', 'charger', 'ranged', 'elite-tank', 'elite-charger', 'boss', 'summoned']));
     expect(bossSeen).toBe(true);
-    expect(summonedIds.size).toBeGreaterThanOrEqual(10);
-    expect(world.state.enemies.filter(e => e.summoned).length).toBeLessThanOrEqual(30);
-    expect(world.state.enemies.length).toBeLessThanOrEqual(253);
+    expect(summonedIds.size).toBeGreaterThanOrEqual(DIRECTOR.summonCount);
+    expect(world.state.enemies.filter(e => e.summoned).length).toBeLessThanOrEqual(DIRECTOR.summonCap);
+    expect(world.state.enemies.length).toBeLessThanOrEqual(CONFIG.enemyLimit + 3);
     expect(world.state.pickups.length).toBeLessThanOrEqual(CONFIG.pickupLimit);
   }, 30000);
 });
@@ -480,7 +480,7 @@ describe('连续闯关与难度缩放', () => {
     const stronger = second.spawnEnemy('chaser', { x: 1000, y: 1000 })!;
     expect(stronger.maxHp).toBeCloseTo(30 * 1.35); expect(stronger.damage).toBeCloseTo(10 * 1.15); expect(stronger.speed).toBeCloseTo(80 * 1.03);
     const boss = second.spawnEnemy('boss', { x: 1900, y: 1600 })!;
-    expect(boss.maxHp).toBeCloseTo(4800 * 1.5);
+    expect(boss.maxHp).toBeCloseTo(ENEMIES.boss.hp * 1.35);
   });
 });
 
@@ -710,7 +710,7 @@ describe('幸运与稀有卡', () => {
     };
     pick('rare:slot');
     expect(world.state.slots).toBe(CONFIG.autoSlots + 1);
-    for (const id of ['homing', 'lightning', 'mine'] as SkillId[]) addSkill(world, id);
+    for (const id of ['homing', 'lightning'] as SkillId[]) addSkill(world, id);
     expect(world.debug.candidates().some(c => c.kind === 'new')).toBe(true);
     pick('rare:lifesteal');
     expect(p.lifesteal).toBeCloseTo(CONFIG.lifestealStep);
@@ -724,4 +724,64 @@ describe('幸运与稀有卡', () => {
     pick('rare:skillBoost');
     expect(totalLevel()).toBe(before + 2);
   });
+});
+
+
+describe('群攻与首领输出窗口', () => {
+  it('每位英雄开局带一个群攻，占用槽位且可正常升级', () => {
+    for (const id of ['circle', 'square', 'triangle'] as const) {
+      const world = new GameWorld(id);
+      expect(world.state.player.skills.map(s => s.id)).toEqual([CHARACTERS[id].base, CHARACTERS[id].startingAoe]);
+      expect(world.state.slots).toBe(4);
+      expect(world.debug.candidates().some(c => c.id === `new:${CHARACTERS[id].startingAoe}`)).toBe(false);
+      expect(world.debug.candidates().some(c => c.id === `level:${CHARACTERS[id].startingAoe}`)).toBe(true);
+    }
+  });
+  it('前三次完成选择均有输出卡，重抽保底且不消耗选择次数', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const world = new GameWorld('square', seed);
+      world.debug.addXp(45);
+      for (let choice = 0; choice < 3; choice++) {
+        if (world.state.rerolls > 0) expect(world.reroll()).toBe(true);
+        const cards = world.state.choices;
+        expect(new Set(cards.map(c => c.id)).size).toBe(3);
+        expect(cards.some(c => c.kind !== 'stat' || c.id === 'stat:damage' || c.id === 'rare:skillBoost')).toBe(true);
+        expect(world.chooseUpgrade(cards.find(c => c.kind === 'stat')?.id ?? cards[0].id)).toBe(true);
+      }
+      expect(world.state.pendingUpgrades).toBe(0);
+    }
+  });
+  it('首领入场撤退普通怪，不奖励击杀或汲取，保留事件精英', () => {
+    const world = new GameWorld('circle', 91), s = world.state;
+    s.time = CONFIG.bossAt; s.player.hp = 70; s.player.lifesteal = .05;
+    world.spawnEnemy('chaser', { x: 1700, y: 1600 });
+    const elite = world.spawnEnemy('elite-tank', { x: 1900, y: 1600 }, false, true)!;
+    s.event = { x: elite.x, y: elite.y, kind: 'elite', enemyId: elite.id, remaining: 60, progress: 0 };
+    world.addProjectile({ x: 1700, y: 1600, owner: 'enemy', skillId: 'enemy', damage: 12, vx: 0, vy: 0, radius: 7, life: 5 });
+    new Director().update(world, CONFIG.step);
+    world.debug.resolveResult();
+    expect(s.enemies.every(e => e.kind === 'boss' || e.kind.startsWith('elite'))).toBe(true);
+    expect(s.enemies.some(e => e.id === elite.id)).toBe(true);
+    expect(s.event?.enemyId).toBe(elite.id);
+    expect(s.projectiles).toHaveLength(0);
+    expect(s).toMatchObject({ kills: 0, xp: 0, pendingUpgrades: 0, eliteKills: 0 });
+    expect(s.pickups).toHaveLength(0);
+    expect(s.player.hp).toBe(70); expect(s.player.energy).toBe(0);
+    expect(s.enemies.find(e => e.kind === 'boss')?.summonTimer).toBe(DIRECTOR.summonInterval);
+  });
+});
+
+
+it('输出保底只覆盖前三次，事件奖励计数且非法选择不计数', () => {
+  const world = new GameWorld('circle');
+  const progression = new Progression(world.state, () => .999999);
+  for (let i = 0; i < 3; i++) {
+    progression.reward();
+    expect(progression.choose('invalid')).toBe(false);
+    progression.roll();
+    expect(world.state.choices.some(c => c.kind !== 'stat' || c.id === 'stat:damage' || c.id === 'rare:skillBoost')).toBe(true);
+    expect(progression.choose(world.state.choices[0].id)).toBe(true);
+  }
+  progression.reward();
+  expect(world.state.choices.every(c => c.kind === 'stat' && c.id !== 'stat:damage' && c.id !== 'rare:skillBoost')).toBe(true);
 });

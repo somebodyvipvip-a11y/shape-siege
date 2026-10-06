@@ -2,6 +2,7 @@ import { CHARACTERS, CONFIG, ELEMENT_NAMES, GENERIC_SKILLS, SKILLS } from './con
 import type { Element, GameState, SkillId, UpgradeChoice } from './types';
 
 export class Progression {
+  private completedChoices = 0;
   constructor(private state: GameState, private random: () => number) {}
 
   addXp(value: number): void {
@@ -29,7 +30,7 @@ export class Progression {
     }
     for (const skill of p.skills) {
       const label = SKILLS[skill.id].name;
-      if (skill.level < CONFIG.skillMaxLevel) pool.push({ id: `level:${skill.id}`, kind: 'level', skillId: skill.id, currentLevel: skill.level, name: `${label}升级`, description: `升至 ${skill.level + 1} 级，基础伤害增加 12%，数量、范围或冷却随等级强化` });
+      if (skill.level < CONFIG.skillMaxLevel) pool.push({ id: `level:${skill.id}`, kind: 'level', skillId: skill.id, currentLevel: skill.level, name: `${label}升级`, description: `升至 ${skill.level + 1} 级，基础伤害增加 ${Math.round(CONFIG.baseDamageGrowth * 100)}%，数量、范围或冷却随等级强化` });
       if (skill.level >= 3 && skill.elements.length === 0) {
         for (const element of ['fire', 'ice', 'lightning'] as Element[]) {
           const detail = element === 'fire' ? '附带持续 2 秒、每秒直接伤害 15% 的燃烧' : element === 'ice' ? '命中减速 25%，持续 2 秒' : '向 120 范围内最多 2 个目标传导 30% 伤害';
@@ -54,7 +55,7 @@ export class Progression {
     if (p.dodge < CONFIG.dodgeCap) pool.push({ id: 'stat:dodge', kind: 'stat', name: '闪避强化', description: `接触伤害闪避增加 5%，最高 ${Math.round(CONFIG.dodgeCap * 100)}%` });
     if (p.armor < CONFIG.armorCap) pool.push({ id: 'stat:armor', kind: 'stat', name: '护甲强化', description: `受到的所有伤害减少 2，最高 ${CONFIG.armorCap}` });
     if (p.hp < p.maxHp) pool.push({ id: 'stat:heal', kind: 'stat', name: '生命恢复', description: '恢复最大生命的 15%' });
-    pool.push({ id: 'stat:damage', kind: 'stat', name: '伤害强化', description: '所有直接伤害增加 3%' });
+    pool.push({ id: 'stat:damage', kind: 'stat', name: '伤害强化', description: `所有直接伤害增加 ${Math.round(CONFIG.damageUpgrade * 100)}%` });
     // 幸运 ≥ 1 解锁专属高级卡；权重随幸运提升（方案第八节），是后续幸运的正反馈来源。
     if (p.luck >= 1) {
       if (p.skills.some(skill => skill.level < CONFIG.skillMaxLevel)) pool.push({ id: 'rare:skillBoost', kind: 'stat', rarity: 'rare', name: '技能跃升·极限', description: '随机一个已拥有技能提升 2 级' });
@@ -78,8 +79,11 @@ export class Progression {
     return picks;
   }
   roll(): void {
-    const choices = this.pick(this.candidates(), 3);
-    while (choices.length < 3) choices.push({ id: `stat:damage:${choices.length}`, kind: 'stat', name: '伤害强化', description: '所有直接伤害增加 3%' });
+    const pool = this.candidates();
+    const offense = (choice: UpgradeChoice): boolean => choice.kind !== 'stat' || choice.id === 'stat:damage' || choice.id === 'rare:skillBoost';
+    const guaranteed = this.completedChoices < 3 ? this.pick(pool.filter(offense), 1) : [];
+    const choices = [...guaranteed, ...this.pick(pool.filter(choice => !guaranteed.some(g => g.id === choice.id)), 3 - guaranteed.length)];
+    while (choices.length < 3) choices.push({ id: `stat:damage:${choices.length}`, kind: 'stat', name: '伤害强化', description: `所有直接伤害增加 ${Math.round(CONFIG.damageUpgrade * 100)}%` });
     this.state.choices = choices;
   }
   choose(id: string): boolean {
@@ -113,7 +117,8 @@ export class Progression {
     } else if (choice.id === 'rare:slot') s.slots = Math.min(CONFIG.slotCap, s.slots + 1);
     else if (choice.id === 'rare:lifesteal') p.lifesteal = Math.min(CONFIG.lifestealCap, p.lifesteal + CONFIG.lifestealStep);
     else if (choice.id === 'rare:luck') this.addLuck(1);
-    else p.damageBonus += .03;
+    else p.damageBonus += CONFIG.damageUpgrade;
+    this.completedChoices++;
     s.pendingUpgrades--;
     s.choices = [];
     if (s.pendingUpgrades) this.roll();

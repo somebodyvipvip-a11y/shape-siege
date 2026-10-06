@@ -76,7 +76,7 @@ export function updateStatuses(world: WorldAccess, dt: number): void {
 }
 export function collectDeaths(world: WorldAccess): void {
   const s = world.state;
-  const xpScale = stageScale(s.stage).xp;
+  const xpScale = stageScale(s.stage).xp * CONFIG.xpMultiplier;
   let write = 0;
   for (const enemy of s.enemies) {
     if (enemy.hp > 0) { s.enemies[write++] = enemy; continue; }

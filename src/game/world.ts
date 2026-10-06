@@ -1,4 +1,4 @@
-import { ACTIVE, CHARACTERS, CONFIG, ENEMIES, STAGES } from './config';
+import { ACTIVE, CHARACTERS, CONFIG, DIRECTOR, ENEMIES, STAGES } from './config';
 import { collectDeaths, damageEnemy, damagePlayer, resolveResult, updateStatuses } from './combat';
 import { Director, updateEnemies } from './director';
 import { Progression } from './progression';
@@ -35,7 +35,7 @@ export class GameWorld implements WorldAccess {
         damageBonus: innate.damageBonus ?? 0, pickupRadius: CONFIG.xpRadius + (innate.pickupRadius ?? 0),
         critChance: innate.critChance ?? 0, critMultiplier: CONFIG.critMultBase + (innate.critMultiplier ?? 0),
         dodge: innate.dodge ?? 0, armor: innate.armor ?? 0, luck: innate.luck ?? 0, lifesteal: innate.lifesteal ?? 0,
-        dashTime: 0, dashRemaining: 0, dashDirection: { x: 0, y: -1 }, skills: [{ id: character.base, level: 1, cooldown: 0, elements: [], enhanced: false }],
+        dashTime: 0, dashRemaining: 0, dashDirection: { x: 0, y: -1 }, skills: [character.base, character.startingAoe].map(id => ({ id, level: 1, cooldown: 0, elements: [], enhanced: false })),
       },
       enemies: [], projectiles: [], pickups: [], effects: [], obstacles: makeObstacles(), time: 0,
       kills: 0, level: 1, xp: 0, xpRequired: 10, pendingUpgrades: 0, choices: [], rerolls: CONFIG.maxRerolls,
@@ -98,7 +98,7 @@ export class GameWorld implements WorldAccess {
       radius: config.radius, speed: config.speed * scale.speed, damage: config.damage * scale.damage, state: 'chase', timer: kind === 'boss' ? 2 : 1,
       target: { x: s.player.x, y: s.player.y }, attackId: this.nextId(), slowTime: 0, slowFactor: 0,
       burn: null, thermal: new Map(), lastThermal: new Map(), orbitHits: new Map(), hitPlayer: false,
-      summoned, eventEnemy, bossPattern: 0, summonTimer: 20, avoidSide: this.random() < .5 ? -1 : 1,
+      summoned, eventEnemy, bossPattern: 0, summonTimer: DIRECTOR.summonInterval, avoidSide: this.random() < .5 ? -1 : 1,
       attackDirection: { x: 0, y: -1 },
     };
     s.enemies.push(enemy);
