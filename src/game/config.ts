@@ -3,11 +3,11 @@ import type { CharacterId, EnemyKind, SkillId } from './types';
 // 单关 5:00 = 300 秒；节点即各阶段切换时刻，见 docs/tasks/gameplay-brief.md 第二节。
 export const STAGE_TIMES = { runners: 30, armor: 60, firstEvent: 90, firstElite: 120, pressure: 150, secondEvent: 180, secondElite: 210, boss: 240 } as const;
 interface Stage { at: number; name: string; batch: number; enemies: readonly EnemyKind[]; periodicRelief: boolean }
-const mixedEnemies: readonly EnemyKind[] = ['chaser', 'runner', 'tank', 'charger', 'ranged'];
+const mixedEnemies: readonly EnemyKind[] = ['chaser', 'runner', 'tank', 'charger', 'ranged', 'exploder'];
 export const STAGES: readonly Stage[] = [
   { at: 0, name: '初始围攻', batch: 1, enemies: ['chaser'], periodicRelief: false },
   { at: STAGE_TIMES.runners, name: '初始围攻', batch: 1, enemies: ['chaser', 'chaser', 'runner'], periodicRelief: false },
-  { at: STAGE_TIMES.armor, name: '重甲来袭', batch: 2, enemies: ['chaser', 'runner', 'tank'], periodicRelief: false },
+  { at: STAGE_TIMES.armor, name: '重甲来袭', batch: 2, enemies: ['chaser', 'runner', 'tank', 'exploder'], periodicRelief: false },
   { at: STAGE_TIMES.firstElite, name: '精英围攻', batch: 2, enemies: mixedEnemies, periodicRelief: false },
   { at: STAGE_TIMES.pressure, name: '高压混战', batch: 3, enemies: mixedEnemies, periodicRelief: true },
   { at: STAGE_TIMES.boss, name: '六边核心', batch: 3, enemies: mixedEnemies, periodicRelief: true },
@@ -57,6 +57,7 @@ export const ENEMIES: Record<EnemyKind, { hp: number; speed: number; radius: num
   tank: { hp: 90, speed: 50, radius: 23, damage: 18, xp: 4, xpDrops: 3, energy: 1 },
   charger: { hp: 50, speed: 76, radius: 16, damage: 16, xp: 2, xpDrops: 2, energy: 1 },
   ranged: { hp: 40, speed: 68, radius: 16, damage: 12, xp: 2, xpDrops: 2, energy: 1 },
+  exploder: { hp: 45, speed: 72, radius: 16, damage: 8, xp: 2, xpDrops: 2, energy: 1 },
   'elite-tank': { hp: 800, speed: 50, radius: 38, damage: 28, xp: 40, xpDrops: 10, energy: 20 },
   'elite-charger': { hp: 1000, speed: 95, radius: 32, damage: 26, xp: 40, xpDrops: 10, energy: 20 },
   // 首领需在 4:00–5:00 的 60 秒窗口内击破：基础生命 3000，与清退普通怪和降低召唤量共同保证输出窗口。
@@ -82,3 +83,5 @@ export const ENEMY_BEHAVIOR = {
   bossChargeSpeed: 500, bossChargeDuration: .85, bossRest: 2.5, bossEnragedRest: 1.4,
   bossShotSpeed: 250, bossShotSpread: .18, bossBlastRadius: 85,
 } as const;
+
+export const EXPLOSION = { fuse: 2, radius: 110, damage: 70, playerDamage: 20 } as const;

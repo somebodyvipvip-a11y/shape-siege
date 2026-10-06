@@ -1,9 +1,9 @@
 import type Phaser from 'phaser';
-import { ACTIVE, CONFIG, ENEMY_BEHAVIOR, SKILLS } from '../game/config';
+import { ACTIVE, CONFIG, ENEMY_BEHAVIOR, EXPLOSION, SKILLS } from '../game/config';
 import type { Enemy, GameState, Vec } from '../game/types';
 import type { Settings } from '../storage';
 
-export const PALETTE = { square: 0x65b8ff, circle: 0x63e2c3, triangle: 0xd0a2ff, enemy: 0xff7185, xp: 0x91e8ff, gold: 0xffd36a };
+export const PALETTE = { square: 0x65b8ff, circle: 0x63e2c3, triangle: 0xd0a2ff, enemy: 0xff7185, explosion: 0xffa568, xp: 0x91e8ff, gold: 0xffd36a };
 type Graphics = Phaser.GameObjects.Graphics;
 export function polygon(g: Graphics, x: number, y: number, radius: number, sides: number, angle = -Math.PI / 2, fill = true): void {
   const points = Array.from({ length: sides }, (_, i) => ({ x: x + Math.cos(angle + i * Math.PI * 2 / sides) * radius, y: y + Math.sin(angle + i * Math.PI * 2 / sides) * radius }));
@@ -32,12 +32,14 @@ export function drawNumber(g: Graphics, x: number, y: number, value: number, hei
   }
 }
 function enemy(g: Graphics, e: Enemy, time: number, reduced: boolean): void {
-  const color = e.burn ? 0xffa568 : e.slowTime > 0 ? 0x91cfff : PALETTE.enemy;
+  const color = e.kind === 'exploder' ? PALETTE.explosion : e.burn ? 0xffa568 : e.slowTime > 0 ? 0x91cfff : PALETTE.enemy;
   g.fillStyle(0x311e35, 1); g.lineStyle(e.kind === 'boss' ? 3 : 2, color, 1);
   if (e.kind === 'boss') {
     polygon(g, e.x, e.y, e.radius, 6, reduced ? 0 : time * .2);
     polygon(g, e.x, e.y, e.radius * .7, 6, reduced ? 0 : -time * .35, false);
     g.fillStyle(color, .8); polygon(g, e.x, e.y, e.radius * .26, 6);
+  } else if (e.kind === 'exploder') {
+    polygon(g, e.x, e.y, e.radius, 8); g.strokeCircle(e.x, e.y, e.radius * .45);
   } else if (e.kind === 'runner') {
     const points = [{ x: e.x, y: e.y - e.radius }, { x: e.x + e.radius * .46, y: e.y }, { x: e.x, y: e.y + e.radius }, { x: e.x - e.radius * .46, y: e.y }];
     g.fillPoints(points, true); g.strokePoints(points, true);
@@ -100,10 +102,17 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
     if (xp) polygon(g, drop.x, drop.y, Math.min(9, 4 + Math.sqrt(drop.value)), 4);
     else { g.fillCircle(drop.x, drop.y, 9); g.lineStyle(2, 0x0b1020, 1); g.lineBetween(drop.x - 4, drop.y, drop.x + 4, drop.y); g.lineBetween(drop.x, drop.y - 4, drop.x, drop.y + 4); }
   }
+  for (const explosion of state.explosions) {
+    if (!visible(explosion, explosion.radius)) continue;
+    danger.fillStyle(PALETTE.explosion, .07); danger.fillCircle(explosion.x, explosion.y, explosion.radius);
+    danger.lineStyle(2, PALETTE.explosion, .9); dashedCircle(danger, explosion.x, explosion.y, explosion.radius);
+    danger.beginPath(); danger.arc(explosion.x, explosion.y, explosion.radius - 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, 1 - explosion.remaining / EXPLOSION.fuse)); danger.strokePath();
+    drawNumber(danger, explosion.x, explosion.y - 26, explosion.remaining, 13);
+  }
   // Friendly effects are intentionally low contrast and underneath enemies and warnings.
   for (const effect of state.effects) {
     if (effect.owner !== 'player' || !visible(effect, effect.radius)) continue;
-    const effectColor = effect.skillId === 'lightning' ? PALETTE.gold : color;
+    const effectColor = effect.skillId === 'explosion' ? PALETTE.explosion : effect.skillId === 'lightning' ? PALETTE.gold : color;
     g.lineStyle(effect.kind === 'field' ? 2 : 1.5, effectColor, .5); g.fillStyle(effectColor, effect.kind === 'field' ? .04 : .075);
     g.fillCircle(effect.x, effect.y, effect.radius); g.strokeCircle(effect.x, effect.y, effect.radius);
     if (effect.kind === 'mine') { polygon(g, effect.x, effect.y, 12, 6, -Math.PI / 2, false); }

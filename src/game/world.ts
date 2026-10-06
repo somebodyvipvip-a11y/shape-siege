@@ -1,5 +1,5 @@
 import { ACTIVE, CHARACTERS, CONFIG, DIRECTOR, ENEMIES, STAGES } from './config';
-import { collectDeaths, damageEnemy, damagePlayer, resolveResult, updateStatuses } from './combat';
+import { collectDeaths, damageEnemy, damagePlayer, resolveResult, updateExplosions, updateStatuses } from './combat';
 import { Director, updateEnemies } from './director';
 import { Progression } from './progression';
 import { SeededRandom } from './random';
@@ -37,7 +37,7 @@ export class GameWorld implements WorldAccess {
         dodge: innate.dodge ?? 0, armor: innate.armor ?? 0, luck: innate.luck ?? 0, lifesteal: innate.lifesteal ?? 0,
         dashTime: 0, dashRemaining: 0, dashDirection: { x: 0, y: -1 }, skills: [character.base, character.startingAoe].map(id => ({ id, level: 1, cooldown: 0, elements: [], enhanced: false })),
       },
-      enemies: [], projectiles: [], pickups: [], effects: [], obstacles: makeObstacles(), time: 0,
+      enemies: [], explosions: [], projectiles: [], pickups: [], effects: [], obstacles: makeObstacles(), time: 0,
       kills: 0, level: 1, xp: 0, xpRequired: 10, pendingUpgrades: 0, choices: [], rerolls: CONFIG.maxRerolls,
       result: null, event: null, damageBySkill: {}, phase: STAGES[0].name, paused: false,
       bossSpawned: false, bossDefeated: false, eliteKills: 0, warning: null, viewport: { x: 1000, y: 700 }, autoSkill: false,
@@ -80,7 +80,7 @@ export class GameWorld implements WorldAccess {
   random(): number { return this.simulationRandom.next(); }
   nextId(): number { return this.sequence++; }
   nearby(position: Vec, radius: number): Enemy[] { return this.grid.query(position, radius); }
-  damage(enemy: Enemy, amount: number, id: SkillId | 'active' | 'ultimate', elements = true): void { damageEnemy(this, enemy, amount, id, elements); }
+  damage(enemy: Enemy, amount: number, id: SkillId | 'active' | 'ultimate' | 'explosion', elements = true): void { damageEnemy(this, enemy, amount, id, elements); }
   damagePlayer(amount: number, contact = false): void { damagePlayer(this, amount, contact); }
   move(body: Vec & { radius: number }, dx: number, dy: number): void { moveBody(body, dx, dy, this.state.obstacles); }
   rewardChoice(): void { this.progression.reward(); }
@@ -99,7 +99,7 @@ export class GameWorld implements WorldAccess {
       radius: config.radius, speed: config.speed * scale.speed, damage: config.damage * scale.damage, state: 'chase', timer: kind === 'boss' ? 2 : 1,
       target: { x: s.player.x, y: s.player.y }, attackId: this.nextId(), slowTime: 0, slowFactor: 0,
       burn: null, thermal: new Map(), lastThermal: new Map(), orbitHits: new Map(), hitPlayer: false,
-      summoned, eventEnemy, bossPattern: 0, summonTimer: DIRECTOR.summonInterval, avoidSide: this.random() < .5 ? -1 : 1,
+      explosionArmed: false, summoned, eventEnemy, bossPattern: 0, summonTimer: DIRECTOR.summonInterval, avoidSide: this.random() < .5 ? -1 : 1,
       attackDirection: { x: 0, y: -1 },
     };
     s.enemies.push(enemy);
@@ -195,6 +195,7 @@ export class GameWorld implements WorldAccess {
     updateStatuses(this, dt);
     updateUltimate(this, dt);
     this.grid.rebuild(s.enemies);
+    updateExplosions(this, dt);
     if (!dead) updateSkills(this, dt);
     updateProjectiles(this, dt);
     updateEffects(this, dt);
@@ -222,7 +223,7 @@ export class GameWorld implements WorldAccess {
   /** 击破首领：清场、回到地图中心并获得短暂无敌，随后弹出大礼包三选一。 */
   private beginStageClear(): void {
     const s = this.state, p = s.player;
-    s.enemies.length = 0; s.projectiles.length = 0; s.effects.length = 0; s.event = null;
+    s.enemies.length = 0; s.projectiles.length = 0; s.effects.length = 0; s.explosions.length = 0; s.event = null;
     p.x = CONFIG.mapSize / 2; p.y = CONFIG.mapSize / 2; p.shield = 0; p.shieldTime = 0;
     // 首领可能在复活等待期间被持续伤害击杀，通关时补满生命并结束倒计时。
     s.reviveTimer = 0;
@@ -236,7 +237,7 @@ export class GameWorld implements WorldAccess {
     const s = this.state, p = s.player;
     s.stage++;
     s.time = 0; s.bossSpawned = false; s.bossDefeated = false; s.warning = null;
-    s.projectiles.length = 0; s.effects.length = 0;
+    s.projectiles.length = 0; s.effects.length = 0; s.explosions.length = 0;
     this.director.reset();
     p.invulnerable = Math.max(p.invulnerable, 1);
   }

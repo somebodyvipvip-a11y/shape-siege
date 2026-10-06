@@ -25,6 +25,7 @@ export class Director {
         // 撤退直接移除，不触发击杀、经验、掉落或汲取；保留精英及其事件。
         s.enemies = s.enemies.filter(enemy => enemy.kind === 'boss' || enemy.kind.startsWith('elite'));
         s.projectiles = s.projectiles.filter(shot => shot.owner !== 'enemy');
+        s.explosions.length = 0;
       }
     }
     for (const [i, at] of DIRECTOR.eventTimes.entries()) if (s.time >= at && !this.events.has(at)) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { CHARACTERS, CONFIG, DIRECTOR, ENEMIES, ENEMY_BEHAVIOR, stageAt } from '../src/game/config';
+import { CHARACTERS, CONFIG, DIRECTOR, ENEMIES, ENEMY_BEHAVIOR, EXPLOSION, stageAt } from '../src/game/config';
 import { Progression, rerollCap } from '../src/game/progression';
+import { updateExplosions } from '../src/game/combat';
 import { Director, updateEnemies } from '../src/game/director';
 import { clearPath } from '../src/game/navigation';
 import { activateSkill, activateUltimate, updateEffects, updateProjectiles, updateSkills, updateUltimate } from '../src/game/skills';
@@ -332,11 +333,11 @@ describe('元素、技能与大招', () => {
 
 describe('导演、地图事件与结算', () => {
   it('阶段名称、刷怪组合和批次保持原边界，事件精英与首领使用统一时刻', () => {
-    const mixed = ['chaser', 'runner', 'tank', 'charger', 'ranged'];
+    const mixed = ['chaser', 'runner', 'tank', 'charger', 'ranged', 'exploder'];
     const boundaries = [
       [0, '初始围攻', 1, ['chaser']],
       [30, '初始围攻', 1, ['chaser', 'chaser', 'runner']],
-      [60, '重甲来袭', 2, ['chaser', 'runner', 'tank']],
+      [60, '重甲来袭', 2, ['chaser', 'runner', 'tank', 'exploder']],
       [120, '精英围攻', 2, mixed],
       [150, '高压混战', 3, mixed],
       [240, '六边核心', 3, mixed],
@@ -441,7 +442,7 @@ describe('导演、地图事件与结算', () => {
       if (world.state.event?.kind === 'charge') secondEvent = true;
     }
     expect(firstEvent).toBe(true); expect(secondEvent).toBe(true);
-    expect([...seen]).toEqual(expect.arrayContaining(['chaser', 'runner', 'tank', 'charger', 'ranged', 'elite-tank', 'elite-charger', 'boss', 'summoned']));
+    expect([...seen]).toEqual(expect.arrayContaining(['chaser', 'runner', 'tank', 'charger', 'ranged', 'exploder', 'elite-tank', 'elite-charger', 'boss', 'summoned']));
     expect(bossSeen).toBe(true);
     expect(summonedIds.size).toBeGreaterThanOrEqual(DIRECTOR.summonCount);
     expect(world.state.enemies.filter(e => e.summoned).length).toBeLessThanOrEqual(DIRECTOR.summonCap);
@@ -829,5 +830,67 @@ describe('按怪物类型散落经验', () => {
     elite.hp = 0; nearWall.debug.resolveResult();
     expect(nearWall.state.pickups.filter(p => p.kind === 'xp').every(p => !blocked(p, 9, nearWall.state.obstacles))).toBe(true);
     expect(nearWall.state.pickups.some(p => p.kind === 'xp' && p.x === elite.x && p.y === elite.y)).toBe(true);
+  });
+});
+
+
+describe('爆炸怪引信与范围伤害', () => {
+  it('未被击中不触发，首次命中开始两秒引信，重复命中不重置', () => {
+    const world = new GameWorld('circle');
+    const source = world.spawnEnemy('exploder', { x: 1700, y: 1600 })!;
+    updateExplosions(world, 3); expect(world.state.explosions).toHaveLength(0);
+    world.damage(source, 1, 'active', false);
+    updateExplosions(world, 1);
+    world.damage(source, 1, 'active', false);
+    expect(world.state.explosions).toHaveLength(1);
+    expect(world.state.explosions[0].remaining).toBe(1);
+  });
+  it('两秒后只命中圈内怪物和英雄一次，圈外怪物无伤害', () => {
+    const world = new GameWorld('circle');
+    const source = world.spawnEnemy('exploder', { x: 1700, y: 1600 })!;
+    const near = dummy(world, 150), far = dummy(world, 300);
+    world.damage(source, 1, 'active', false);
+    updateExplosions(world, 1.99);
+    expect(near.hp).toBe(1000); expect(world.state.player.hp).toBe(150);
+    updateExplosions(world, .01);
+    expect(near.hp).toBe(1000 - EXPLOSION.damage); expect(far.hp).toBe(1000);
+    expect(world.state.player.hp).toBe(150 - EXPLOSION.playerDamage);
+    expect(source.hp).toBe(0); expect(world.state.explosions).toHaveLength(0);
+    updateExplosions(world, 5); expect(world.state.player.hp).toBe(130);
+  });
+  it('引信跟随怪物，提前死亡后保留死亡点并正常伤害与掉落', () => {
+    const world = new GameWorld('circle');
+    const source = world.spawnEnemy('exploder', { x: 1700, y: 1600 })!;
+    world.damage(source, 1, 'active', false);
+    source.x = 1900; updateExplosions(world, .5);
+    expect(world.state.explosions[0].x).toBe(1900);
+    source.x = 1950; world.damage(source, 100, 'active', false); world.debug.resolveResult();
+    expect(world.state.explosions[0].x).toBe(1950);
+    expect(world.state.pickups.filter(p => p.kind === 'xp')).toHaveLength(2);
+    const target = dummy(world, 380);
+    updateExplosions(world, 1.5);
+    expect(target.hp).toBe(930); expect(world.state.player.hp).toBe(150);
+  });
+  it('爆炸不触发其他爆炸怪的引信，不暴击；特效满额也保留伤害', () => {
+    const world = new GameWorld('triangle'); world.state.player.critChance = 1;
+    const source = world.spawnEnemy('exploder', { x: 1700, y: 1600 })!;
+    const target = world.spawnEnemy('exploder', { x: 1750, y: 1600 })!; target.hp = 200;
+    const effect = world.addEffect({ x: 2000, y: 1600 })!;
+    world.state.effects = Array.from({ length: CONFIG.effectLimit }, () => ({ ...effect, id: world.nextId() }));
+    world.damage(source, 1, 'active', false); updateExplosions(world, 2);
+    expect(target.hp).toBe(130); expect(target.explosionArmed).toBe(false);
+    expect(world.state.explosions).toHaveLength(0);
+  });
+  it('暂停冻结引信，首领入场与通关清理待爆队列', () => {
+    const world = new GameWorld('circle');
+    const source = world.spawnEnemy('exploder', { x: 2000, y: 1600 })!;
+    world.damage(source, 1, 'active', false);
+    world.setPaused(true); world.update(1); expect(world.state.explosions[0].remaining).toBe(2);
+    world.setPaused(false); world.state.time = CONFIG.bossAt;
+    new Director().update(world, CONFIG.step); expect(world.state.explosions).toHaveLength(0);
+    const next = world.spawnEnemy('exploder', { x: 2000, y: 1600 })!;
+    world.damage(next, 1, 'active', false);
+    const boss = world.state.enemies.find(e => e.kind === 'boss')!; boss.hp = 0;
+    world.update(CONFIG.step); expect(world.state.gift).toHaveLength(3); expect(world.state.explosions).toHaveLength(0);
   });
 });

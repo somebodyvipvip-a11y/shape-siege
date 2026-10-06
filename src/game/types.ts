@@ -1,7 +1,7 @@
 export type CharacterId = 'square' | 'circle' | 'triangle';
 export type SkillId = 'base-square' | 'base-circle' | 'base-triangle' | 'homing' | 'lightning' | 'boomerang' | 'mine' | 'shockwave' | 'meteor';
 export type Element = 'fire' | 'ice' | 'lightning';
-export type EnemyKind = 'chaser' | 'runner' | 'tank' | 'charger' | 'ranged' | 'elite-tank' | 'elite-charger' | 'boss';
+export type EnemyKind = 'chaser' | 'runner' | 'tank' | 'charger' | 'ranged' | 'exploder' | 'elite-tank' | 'elite-charger' | 'boss';
 export interface Vec { x: number; y: number }
 export interface Input extends Vec { skill: boolean; ultimate: boolean }
 export interface Obstacle extends Vec { width: number; height: number }
@@ -20,7 +20,7 @@ export interface Enemy extends Vec {
   state: 'chase' | 'warning' | 'attack' | 'rest'; timer: number; target: Vec; attackId: number;
   slowTime: number; slowFactor: number; burn: Burn | null; thermal: Map<SkillId, number>;
   lastThermal: Map<SkillId, number>; summoned: boolean; eventEnemy: boolean; bossPattern: number; summonTimer: number;
-  orbitHits: Map<number, number>; hitPlayer: boolean; avoidSide: number; attackDirection: Vec;
+  explosionArmed: boolean; orbitHits: Map<number, number>; hitPlayer: boolean; avoidSide: number; attackDirection: Vec;
 }
 export interface Projectile extends Vec {
   id: number; attackId: number; owner: 'player' | 'enemy'; skillId: SkillId | 'enemy';
@@ -31,7 +31,7 @@ export interface Projectile extends Vec {
 export interface Pickup extends Vec { id: number; kind: 'xp' | 'heal' | 'maxhp'; value: number; attracted: boolean }
 export interface Effect extends Vec {
   id: number; attackId: number; kind: 'warning' | 'blast' | 'mine' | 'field' | 'dash';
-  owner: 'player' | 'enemy'; skillId: SkillId | 'active' | 'ultimate' | 'enemy';
+  owner: 'player' | 'enemy'; skillId: SkillId | 'active' | 'ultimate' | 'explosion' | 'enemy';
   radius: number; damage: number; delay: number; life: number; triggered: boolean; hit: Set<number>;
 }
 export interface UpgradeChoice {
@@ -41,8 +41,9 @@ export interface UpgradeChoice {
 }
 export interface MapEvent extends Vec { kind: 'elite' | 'charge'; remaining: number; progress: number; enemyId: number | null }
 export type GameResult = 'victory' | 'death' | 'timeout' | null;
+export interface PendingExplosion extends Vec { sourceId: number; remaining: number; radius: number; damage: number; playerDamage: number }
 export interface GameState {
-  player: Player; enemies: Enemy[]; projectiles: Projectile[]; pickups: Pickup[]; effects: Effect[]; obstacles: Obstacle[];
+  player: Player; enemies: Enemy[]; explosions: PendingExplosion[]; projectiles: Projectile[]; pickups: Pickup[]; effects: Effect[]; obstacles: Obstacle[];
   time: number; kills: number; level: number; xp: number; xpRequired: number; pendingUpgrades: number;
   choices: UpgradeChoice[]; rerolls: number; result: GameResult; event: MapEvent | null;
   damageBySkill: Record<string, number>; phase: string; paused: boolean; bossSpawned: boolean; bossDefeated: boolean;
@@ -53,7 +54,7 @@ export interface GameState {
 export interface WorldAccess {
   state: GameState; random(): number; nextId(): number;
   nearby(position: Vec, radius: number): Enemy[];
-  damage(enemy: Enemy, amount: number, skillId: SkillId | 'active' | 'ultimate', elements?: boolean): void;
+  damage(enemy: Enemy, amount: number, skillId: SkillId | 'active' | 'ultimate' | 'explosion', elements?: boolean): void;
   damagePlayer(amount: number, contact?: boolean): void;
   spawnEnemy(kind: EnemyKind, position?: Vec, summoned?: boolean, eventEnemy?: boolean): Enemy | null;
   addProjectile(data: Partial<Projectile> & Vec): Projectile | null;
