@@ -32,6 +32,6 @@ export function menuHTML(selected: CharacterId, save: SaveData, version: string)
       }).join('')}</div>
     </section>
     <div class="start-row"><p>${icon('help')} 自动攻击敌人，移动拾取经验，升级时选择强化。</p><button class="primary-button start-button" data-action="start">进入竞技场 ${icon('arrow')}</button></div>
-    <footer class="menu-footer"><span>原创几何生存游戏</span><span>本地游玩 · 无需登录 <i></i> v${version}</span></footer>
+    <footer class="menu-footer"><span>原创几何生存游戏</span><button class="quiet-button" data-action="release">更新公告 · v${version}</button><span>本地游玩 · 无需登录</span></footer>
   </main>`;
 }

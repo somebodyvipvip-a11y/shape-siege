@@ -9,8 +9,9 @@ import { HUD, hudHTML } from './ui/hud';
 import { confirmLeaveHTML, giftHTML, helpHTML, loadingHTML, pauseHTML, resultHTML, settingsHTML, statsHTML, upgradeHTML } from './ui/overlays';
 import { escapeHTML, icon } from './ui/shared';
 import { handleDialogEscape } from './ui/dialog-input';
+import { releaseNotesHTML } from './ui/release-notes';
 
-type Panel = 'none' | 'pause' | 'upgrade' | 'gift' | 'result' | 'settings' | 'help' | 'leave' | 'loading' | 'error' | 'stats';
+type Panel = 'none' | 'pause' | 'upgrade' | 'gift' | 'result' | 'settings' | 'help' | 'leave' | 'loading' | 'error' | 'stats' | 'release';
 export class GameApp {
   private save = browserSave();
   private audio = new GameAudio(this.save.data.settings);
@@ -49,7 +50,10 @@ export class GameApp {
     this.stopAudio(); this.panel = 'none'; this.panelSignature = ''; this.resultSaved = false;
     document.body.classList.remove('in-battle');
     this.root.innerHTML = `<div id="screen">${menuHTML(this.selected, this.save.data, this.version)}</div><div id="overlay-root"></div><div id="notice-root" aria-live="polite"></div>`;
-    this.overlay = this.root.querySelector('#overlay-root')!; this.notice(this.save.warning);
+    this.overlay = this.root.querySelector('#overlay-root')!;
+    const warning = this.save.warning;
+    if (this.save.consumeReleaseNotice(this.version)) this.setPanel('release', releaseNotesHTML(this.version));
+    this.notice(this.save.warning || warning);
   }
   private notice(message: string): void {
     const root = this.root.querySelector('#notice-root');
@@ -217,6 +221,7 @@ export class GameApp {
         this.setPanel(settings ? 'settings' : 'help', settings ? settingsHTML(this.save.data.settings) : helpHTML(!!this.world)); break;
       }
       case 'close': this.closePanel(); break;
+      case 'release': this.setPanel('release', releaseNotesHTML(this.version)); break;
       case 'reroll': if (this.world?.reroll()) { this.audio.play('select'); this.panelSignature = ''; this.setPanel('upgrade', upgradeHTML(this.world.state, this.rewards[0] ?? false)); } break;
       case 'dismiss-notice': this.notice(''); break;
     }

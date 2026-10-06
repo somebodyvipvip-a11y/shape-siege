@@ -4,6 +4,6 @@ export function handleDialogEscape(event: KeyboardEvent, panel: string, resume: 
   event.preventDefault();
   if (event.repeat) return true;
   if (panel === 'pause') resume();
-  else if (['settings', 'help', 'leave'].includes(panel)) close();
+  else if (['settings', 'help', 'leave', 'release'].includes(panel)) close();
   return true;
 }

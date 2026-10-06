@@ -5,13 +5,14 @@ export interface Settings {
 }
 export interface SaveData {
   schemaVersion: 1; settings: Settings; unlocked: CharacterId[];
+  seenReleaseVersion: string;
   best: { kills: number; time: number; level: number; victories: number; bestStage: number };
   stats: { runs: number; kills: number; time: number; bestStage: number };
 }
 export interface StoragePort { getItem(key: string): string | null; setItem(key: string, value: string): void }
 export const SAVE_KEY = 'block-battle.save';
 export function defaultSave(): SaveData {
-  return { schemaVersion: 1, settings: { autoSkill: false, music: .25, sound: .55, quality: 'default', reducedMotion: false, shake: true }, unlocked: ['circle'], best: { kills: 0, time: 0, level: 1, victories: 0, bestStage: 1 }, stats: { runs: 0, kills: 0, time: 0, bestStage: 1 } };
+  return { schemaVersion: 1, seenReleaseVersion: '', settings: { autoSkill: false, music: .25, sound: .55, quality: 'default', reducedMotion: false, shake: true }, unlocked: ['circle'], best: { kills: 0, time: 0, level: 1, victories: 0, bestStage: 1 }, stats: { runs: 0, kills: 0, time: 0, bestStage: 1 } };
 }
 const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const number = (value: unknown, fallback: number, max = Number.MAX_SAFE_INTEGER): number => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.min(max, value) : fallback;
@@ -36,6 +37,7 @@ export function validateSave(raw: unknown): SaveData {
   const unlocked = Array.isArray(data.unlocked) ? data.unlocked : [];
   return {
     schemaVersion: 1,
+    seenReleaseVersion: typeof data.seenReleaseVersion === 'string' && /^\d+\.\d+\.\d+$/.test(data.seenReleaseVersion) ? data.seenReleaseVersion : '',
     settings: { autoSkill: bool(settings.autoSkill, false), music: number(settings.music, .25, 1), sound: number(settings.sound, .55, 1), quality: settings.quality === 'low' ? 'low' : 'default', reducedMotion: bool(settings.reducedMotion, false), shake: bool(settings.shake, true) },
     unlocked: ['circle', ...(['square', 'triangle'] as const).filter(id => unlocked.includes(id))],
     best: { kills: Math.floor(number(best.kills, 0)), time: number(best.time, 0, 300), level: Math.max(1, Math.floor(number(best.level, 1))), victories: Math.floor(number(best.victories, 0)), bestStage: Math.max(1, Math.floor(number(best.bestStage, 1))) },
@@ -63,6 +65,13 @@ export class SaveStore {
       this.warning = '';
       return true;
     } catch { this.warning = '本地保存失败，本次进度仍保留在当前页面。'; return false; }
+  }
+  /** 显示即标记；写入失败也保留本页面的已读状态，不反复打断首页。 */
+  consumeReleaseNotice(version: string): boolean {
+    if (this.data.seenReleaseVersion === version) return false;
+    this.data.seenReleaseVersion = version;
+    this.persist();
+    return true;
   }
   unlockElite(state: Pick<GameState, 'eliteKills'>): boolean {
     if (state.eliteKills > 0 && !this.data.unlocked.includes('triangle')) {

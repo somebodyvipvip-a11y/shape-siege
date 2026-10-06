@@ -7,6 +7,8 @@ import { blocked } from '../src/game/spatial';
 import { drawWorld } from '../src/render/geometry';
 import { viewportFor } from '../src/render/viewport';
 import { handleDialogEscape } from '../src/ui/dialog-input';
+import { readReleaseNotes, releaseNotesHTML } from '../src/ui/release-notes';
+vi.mock('../src/ui/shared', async importOriginal => ({ ...await importOriginal<object>(), icon: () => '<svg aria-hidden="true"></svg>' }));
 
 function event(type: string, properties: Record<string, unknown> = {}): Event {
   const value = new Event(type, { cancelable: true });
@@ -122,6 +124,34 @@ describe('unified input lifecycle', () => {
 });
 
 describe('local save recovery and unlocks', () => {
+  it('公告每个版本只自动提醒一次，刷新后保留已读状态且不改变游戏进度', () => {
+    const memory = new Map<string, string>();
+    const port: StoragePort = { getItem: key => memory.get(key) ?? null, setItem: (key, value) => { memory.set(key, value); } };
+    const store = new SaveStore(port); store.data.best.kills = 42; store.data.unlocked.push('square');
+    expect(store.consumeReleaseNotice('0.12.0')).toBe(true);
+    expect(store.consumeReleaseNotice('0.12.0')).toBe(false);
+    const reload = new SaveStore(port);
+    expect(reload.consumeReleaseNotice('0.12.0')).toBe(false);
+    expect(reload.data.best.kills).toBe(42); expect(reload.data.unlocked).toContain('square');
+    expect(reload.consumeReleaseNotice('0.13.0')).toBe(true);
+    expect(new SaveStore(port).consumeReleaseNotice('0.13.0')).toBe(false);
+  });
+  it('无法写入存储时，本页面仍不重复提醒，并保留保存失败提示', () => {
+    const store = new SaveStore({ getItem: () => null, setItem: () => { throw Error('blocked'); } });
+    expect(store.consumeReleaseNotice('0.12.0')).toBe(true);
+    expect(store.consumeReleaseNotice('0.12.0')).toBe(false);
+    expect(store.warning).toContain('本地保存失败');
+  });
+  it('公告从更新记录提取版本与项目，渲染转义并支持 Esc 关闭', () => {
+    expect(readReleaseNotes('# 更新记录\r\n## 0.12.0 - 2026-10-06\r\n- 支持 `功能`\r\n\r\n## 0.11.0 - 2026-10-05\r\n- 亡灵')).toEqual([
+      { version: '0.12.0', date: '2026-10-06', changes: ['支持 功能'] },
+      { version: '0.11.0', date: '2026-10-05', changes: ['亡灵'] },
+    ]);
+    expect(releaseNotesHTML('<unsafe>')).toContain('&lt;unsafe&gt;');
+    const close = vi.fn();
+    handleDialogEscape(event('keydown', { code: 'Escape', repeat: false }) as KeyboardEvent, 'release', vi.fn(), close);
+    expect(close).toHaveBeenCalledOnce();
+  });
   it('validates unknown schema and malformed fields, preserving valid fields only', () => {
     expect(validateSave({ schemaVersion: 2 })).toEqual(defaultSave());
     const save = validateSave({ schemaVersion: 1, settings: { autoSkill: 'yes', music: Infinity, sound: -1, quality: 'ultra' }, unlocked: ['triangle', 'unknown', 'triangle'], best: { kills: -3, time: 900 }, stats: null });

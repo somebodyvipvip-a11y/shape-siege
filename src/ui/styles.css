@@ -1337,6 +1337,14 @@ small {
   width: 40px
 }
 
+.release-dialog h2 small { font-size: 14px; color: #91e8ff; white-space: nowrap }
+.release-notes section { padding: 12px 0; border-top: 1px solid #35465f }
+.release-notes h3 { margin: 0 0 10px; font-size: 15px; color: #edf5ff }
+.release-notes h3 small { margin-left: 12px; font-size: 11px; font-weight: normal; color: #a8b7cc }
+.release-notes ul { margin: 0; padding-left: 20px; color: #c4d1e3; font-size: 13px; line-height: 1.8 }
+.release-notes li + li { margin-top: 8px }
+.release-dialog > .primary-button { margin-top: 18px }
+
 .compact-dialog {
   width: 420px;
   text-align: center;
