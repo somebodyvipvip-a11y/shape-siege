@@ -1,6 +1,6 @@
 # Shape Siege（方块大战）
 
-Shape Siege 意为“几何围攻”，是一款原创几何风格的单人浏览器生存游戏，支持电脑和手机。移动拾取经验，自动攻击怪潮，选择技能与元素构筑，突破重重包围。
+Shape Siege 意为“几何围攻”，是一款原创几何风格的单人浏览器生存游戏，支持电脑和手机。每局开场生成随机多边形地形，同局闯关沿用地图。移动拾取经验，自动攻击怪潮，选择技能与元素构筑，突破重重包围。
 
 GitHub 仓库：[somebodyvipvip-a11y/shape-siege](https://github.com/somebodyvipvip-a11y/shape-siege)。在线游玩：[Shape Siege](https://somebodyvipvip-a11y.github.io/shape-siege/)。
 

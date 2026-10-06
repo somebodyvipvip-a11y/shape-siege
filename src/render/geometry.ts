@@ -76,6 +76,11 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
   g.lineStyle(5, 0x4e607e, 1); g.strokeRect(0, 0, CONFIG.mapSize, CONFIG.mapSize);
   for (const obstacle of state.obstacles) {
     if (!visible({ x: obstacle.x + obstacle.width / 2, y: obstacle.y + obstacle.height / 2 }, Math.max(obstacle.width, obstacle.height))) continue;
+    if (obstacle.vertices) {
+      g.fillStyle(0x26344b, 1); g.lineStyle(2, 0x61738e, .85);
+      g.fillPoints(obstacle.vertices, true); g.strokePoints(obstacle.vertices, true);
+      continue;
+    }
     const x = obstacle.x, y = obstacle.y;
     g.fillStyle(0x26344b, 1); g.lineStyle(2, 0x61738e, .85); g.fillRect(x, y, obstacle.width, obstacle.height); g.strokeRect(x, y, obstacle.width, obstacle.height);
     g.lineStyle(1, 0x8190a8, .2); g.lineBetween(x + 8, y + 8, x + obstacle.width - 8, y + 8);

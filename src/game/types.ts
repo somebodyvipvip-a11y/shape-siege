@@ -4,7 +4,7 @@ export type Element = 'fire' | 'ice' | 'lightning';
 export type EnemyKind = 'chaser' | 'runner' | 'tank' | 'charger' | 'ranged' | 'exploder' | 'elite-tank' | 'elite-charger' | 'boss';
 export interface Vec { x: number; y: number }
 export interface Input extends Vec { skill: boolean; ultimate: boolean }
-export interface Obstacle extends Vec { width: number; height: number }
+export interface Obstacle extends Vec { width: number; height: number; vertices?: Vec[] }
 export interface SkillState { id: SkillId; level: number; cooldown: number; elements: Element[]; enhanced: boolean }
 export interface Player extends Vec {
   characterId: CharacterId; radius: number; hp: number; maxHp: number; speed: number;

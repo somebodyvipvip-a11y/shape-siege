@@ -1,8 +1,8 @@
 import { CONFIG } from './config';
-import { blocked, direction, distanceSq } from './spatial';
+import { blocked, direction, distanceSq, pointSegmentDistanceSq, segmentsIntersect } from './spatial';
 import type { Enemy, Obstacle, Vec, WorldAccess } from './types';
 
-// Static rectangular islands need only four clearance corners each. Graphs and
+// Use each island's bounding clearance corners as conservative routing nodes. Graphs and
 // target distances are shared by all enemies of the same radius in one world.
 interface Graph {
   points: Vec[];
@@ -16,19 +16,19 @@ interface Route { waypoint: Vec; version: number }
 const navigation = new WeakMap<WorldAccess, Navigation>();
 const padding = 2;
 
-function pointSegmentDistanceSq(point: Vec, a: Vec, b: Vec): number {
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const lengthSq = dx * dx + dy * dy;
-  const t = lengthSq ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSq)) : 0;
-  return distanceSq(point, { x: a.x + t * dx, y: a.y + t * dy });
-}
-
-/** Exact swept-circle clearance, including rectangle corners and map edges. */
+/** Exact swept-circle clearance, including polygon edges, rectangle corners and map edges. */
 export function clearPath(a: Vec, b: Vec, radius: number, obstacles: Obstacle[]): boolean {
   if (blocked(a, radius, obstacles) || blocked(b, radius, obstacles)) return false;
   for (const o of obstacles) {
     if (Math.max(a.x, b.x) < o.x - radius || Math.min(a.x, b.x) > o.x + o.width + radius ||
         Math.max(a.y, b.y) < o.y - radius || Math.min(a.y, b.y) > o.y + o.height + radius) continue;
+    if (o.vertices) {
+      for (let i = 0; i < o.vertices.length; i++) {
+        const c = o.vertices[i], d = o.vertices[(i + 1) % o.vertices.length];
+        if (segmentsIntersect(a, b, c, d) || Math.min(pointSegmentDistanceSq(a, c, d), pointSegmentDistanceSq(b, c, d), pointSegmentDistanceSq(c, a, b), pointSegmentDistanceSq(d, a, b)) < radius * radius) return false;
+      }
+      continue;
+    }
     // Slab intersection catches paths through the rectangle's interior.
     let enter = 0, exit = 1;
     for (const [start, delta, low, high] of [[a.x, b.x - a.x, o.x, o.x + o.width], [a.y, b.y - a.y, o.y, o.y + o.height]]) {

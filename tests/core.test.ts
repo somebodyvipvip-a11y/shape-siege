@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { CHARACTERS, CONFIG, DIRECTOR, ENEMIES, ENEMY_BEHAVIOR, EXPLOSION, stageAt } from '../src/game/config';
+import { SeededRandom } from '../src/game/random';
 import { Progression, rerollCap } from '../src/game/progression';
 import { updateExplosions } from '../src/game/combat';
 import { Director, updateEnemies } from '../src/game/director';
 import { clearPath } from '../src/game/navigation';
 import { activateSkill, activateUltimate, updateEffects, updateProjectiles, updateSkills, updateUltimate } from '../src/game/skills';
-import { blocked, distanceSq } from '../src/game/spatial';
+import { blocked, distanceSq, makeObstacles, moveBody } from '../src/game/spatial';
 import type { Element, Enemy, Input, SkillId } from '../src/game/types';
 import { GameWorld } from '../src/game/world';
 
@@ -193,10 +194,10 @@ describe('运动和命中规则', () => {
     for (const radius of [11, 23, 38, 60]) {
       const world = new GameWorld();
       Object.assign(world.state.player, { x: 842.9008634, y: 131.5168725 });
-      const enemy = world.spawnEnemy('chaser', { x: 2894.1033717, y: 834.6706369 })!;
+      const enemy = world.spawnEnemy('chaser', { x: 3130, y: 1600 })!;
       enemy.radius = radius;
       for (let i = 0; i < 30 * 60; i++) {
-        if (i === 10 * 60) Object.assign(world.state.player, { x: 1950, y: 1940 });
+        if (i === 10 * 60) Object.assign(world.state.player, { x: 1600, y: 1600 });
         updateEnemies(world, CONFIG.step);
         expect(blocked(enemy, radius, world.state.obstacles)).toBe(false);
       }
@@ -892,5 +893,50 @@ describe('爆炸怪引信与范围伤害', () => {
     world.damage(next, 1, 'active', false);
     const boss = world.state.enemies.find(e => e.kind === 'boss')!; boss.hp = 0;
     world.update(CONFIG.step); expect(world.state.gift).toHaveLength(3); expect(world.state.explosions).toHaveLength(0);
+  });
+});
+
+
+describe('开局随机多边形地形', () => {
+  it('相同种子地图可复现，不同种子有差异，地图随机不消耗战斗流', () => {
+    expect(new GameWorld('circle', 73).state.obstacles).toEqual(new GameWorld('square', 73).state.obstacles);
+    expect(new GameWorld('circle', 73).state.obstacles).not.toEqual(new GameWorld('circle', 74).state.obstacles);
+    expect(new GameWorld('circle', 73).random()).toBe(new SeededRandom(73).next());
+  });
+  it('50 个地图种子保留出生区、边缘及岛屿间通路，生成凸 3–6 边形', () => {
+    for (let seed = 0; seed < 50; seed++) {
+      const obstacles = makeObstacles(new SeededRandom(seed).next);
+      expect(obstacles.length).toBeGreaterThanOrEqual(12); expect(obstacles.length).toBeLessThanOrEqual(16);
+      expect(blocked({ x: 1600, y: 1600 }, 360, obstacles)).toBe(false);
+      for (const o of obstacles) {
+        expect(o.vertices!.length).toBeGreaterThanOrEqual(3); expect(o.vertices!.length).toBeLessThanOrEqual(6);
+        expect(o.x).toBeGreaterThanOrEqual(160); expect(o.y).toBeGreaterThanOrEqual(160);
+        expect(o.x + o.width).toBeLessThanOrEqual(3040); expect(o.y + o.height).toBeLessThanOrEqual(3040);
+        for (const other of obstacles) if (other !== o) expect(o.x + o.width + 240 < other.x || other.x + other.width + 240 < o.x || o.y + o.height + 240 < other.y || other.y + other.height + 240 < o.y).toBe(true);
+      }
+    }
+  });
+  it('碰撞与扫掠按多边形边缘判定，包围盒的空角可通行', () => {
+    const obstacles = [{ x: 1000, y: 1000, width: 200, height: 200, vertices: [{ x: 1000, y: 1000 }, { x: 1200, y: 1000 }, { x: 1100, y: 1200 }] }];
+    expect(blocked({ x: 1100, y: 1090 }, 5, obstacles)).toBe(true);
+    expect(blocked({ x: 1005, y: 1190 }, 5, obstacles)).toBe(false);
+    expect(clearPath({ x: 990, y: 1190 }, { x: 1020, y: 1190 }, 4, obstacles)).toBe(true);
+    expect(clearPath({ x: 900, y: 1100 }, { x: 1300, y: 1100 }, 4, obstacles)).toBe(false);
+    const body = { x: 900, y: 1100, radius: 10 };
+    moveBody(body, 400, 0, obstacles);
+    expect(body.x).toBeLessThan(1050); expect(blocked(body, 10, obstacles)).toBe(false);
+  });
+  it('不同体型可绕过多边形追击，连续关卡保留地图', () => {
+    for (const radius of [11, 23, 38, 60]) {
+      const world = new GameWorld(); world.state.player.x = 1950;
+      world.state.obstacles = [{ x: 1660, y: 1500, width: 180, height: 200, vertices: [{ x: 1660, y: 1500 }, { x: 1840, y: 1600 }, { x: 1660, y: 1700 }] }];
+      const enemy = world.spawnEnemy('chaser', { x: 1550, y: 1600 })!; enemy.radius = radius;
+      for (let i = 0; i < 16 * 60; i++) { updateEnemies(world, CONFIG.step); expect(blocked(enemy, radius, world.state.obstacles)).toBe(false); }
+      expect(distanceSq(enemy, world.state.player)).toBeLessThan((radius + world.state.player.radius + 1) ** 2);
+    }
+    const world = new GameWorld('circle', 991), map = world.state.obstacles;
+    world.spawnEnemy('boss', { x: 1700, y: 1600 })!.hp = 0;
+    world.update(CONFIG.step); world.chooseGift(world.state.gift[0].id);
+    expect(world.state.obstacles).toBe(map); expect(world.state.stage).toBe(2);
   });
 });

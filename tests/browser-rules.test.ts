@@ -167,7 +167,8 @@ describe('local save recovery and unlocks', () => {
 
 describe('rendering matches simulation geometry', () => {
   it('renders obstacle rectangles from the exact collision top-left coordinates', () => {
-    const world = new GameWorld('square'), obstacle = world.state.obstacles[0];
+    const world = new GameWorld('square'), obstacle = { x: 1040, y: 1040, width: 180, height: 180 };
+    world.state.obstacles = [obstacle];
     world.state.player.x = obstacle.x + obstacle.width / 2; world.state.player.y = obstacle.y + obstacle.height / 2;
     const calls: { name: string; args: unknown[] }[] = [];
     const graphics = new Proxy({}, { get: (_target, name) => (...args: unknown[]) => { calls.push({ name: String(name), args }); return graphics; } }) as Phaser.GameObjects.Graphics;
@@ -198,4 +199,15 @@ it('floating joystick starts at each landing point and releases capture on lift'
     expect(f.stick.base.style).toEqual({ left: '', top: '' });
   }
   f.input.destroy();
+});
+
+
+it('renders polygon terrain using the same vertices as collision', () => {
+  const world = new GameWorld('square'), obstacle = world.state.obstacles[0];
+  world.state.player.x = obstacle.x + obstacle.width / 2; world.state.player.y = obstacle.y + obstacle.height / 2;
+  const calls: { name: string; args: unknown[] }[] = [];
+  const graphics = new Proxy({}, { get: (_target, name) => (...args: unknown[]) => { calls.push({ name: String(name), args }); return graphics; } }) as Phaser.GameObjects.Graphics;
+  drawWorld(graphics, graphics, world.state, defaultSave().settings);
+  expect(calls.some(call => call.name === 'fillPoints' && call.args[0] === obstacle.vertices)).toBe(true);
+  expect(calls.some(call => call.name === 'strokePoints' && call.args[0] === obstacle.vertices)).toBe(true);
 });

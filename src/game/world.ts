@@ -26,6 +26,7 @@ export class GameWorld implements WorldAccess {
     const character = CHARACTERS[characterId], innate = character.attributes;
     this.simulationRandom = new SeededRandom(seed);
     const choicesRandom = new SeededRandom(seed ^ 0xBADC0FFE);
+    const terrainRandom = new SeededRandom(seed ^ 0x7E22A1);
     this.state = {
       player: {
         characterId, x: CONFIG.mapSize / 2, y: CONFIG.mapSize / 2, radius: CONFIG.playerRadius,
@@ -37,7 +38,7 @@ export class GameWorld implements WorldAccess {
         dodge: innate.dodge ?? 0, armor: innate.armor ?? 0, luck: innate.luck ?? 0, lifesteal: innate.lifesteal ?? 0,
         dashTime: 0, dashRemaining: 0, dashDirection: { x: 0, y: -1 }, skills: [character.base, character.startingAoe].map(id => ({ id, level: 1, cooldown: 0, elements: [], enhanced: false })),
       },
-      enemies: [], explosions: [], projectiles: [], pickups: [], effects: [], obstacles: makeObstacles(), time: 0,
+      enemies: [], explosions: [], projectiles: [], pickups: [], effects: [], obstacles: makeObstacles(terrainRandom.next), time: 0,
       kills: 0, level: 1, xp: 0, xpRequired: 10, pendingUpgrades: 0, choices: [], rerolls: CONFIG.maxRerolls,
       result: null, event: null, damageBySkill: {}, phase: STAGES[0].name, paused: false,
       bossSpawned: false, bossDefeated: false, eliteKills: 0, warning: null, viewport: { x: 1000, y: 700 }, autoSkill: false,
