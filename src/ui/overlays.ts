@@ -1,12 +1,15 @@
 import { CHARACTERS, CONFIG, ELEMENT_NAMES, SKILLS } from '../game/config';
 import { skillDamage } from '../game/progression';
-import type { CharacterId, GameState, UpgradeChoice } from '../game/types';
+import type { CharacterId, GameState, Player, UpgradeChoice } from '../game/types';
 import type { Settings } from '../storage';
-import { COLORS, ROLE_TEXT, attributeRows, escapeHTML, geometry, icon, timeLabel } from './shared';
+import { COLORS, ROLE_TEXT, attributeRows, escapeHTML, geometry, icon, lifeRow, timeLabel } from './shared';
 
 function dialog(content: string, className = '', label = '游戏面板'): string { return `<div class="overlay-backdrop"><section class="dialog ${className}" role="dialog" aria-modal="true" aria-label="${label}" tabindex="-1">${content}</section></div>`; }
+function attributeStrip(player: Player, tag: 'div' | 'span', className: string): string {
+  return `<div class="${className}" style="--role-color:${COLORS[player.characterId]}">${[lifeRow(player), ...attributeRows(player)].map(row => `<${tag}><small>${row.label}</small><b>${row.value}</b></${tag}>`).join('')}</div>`;
+}
 export function pauseHTML(state: GameState): string {
-  return dialog(`<div class="dialog-emblem">${icon('pause')}</div><span class="eyebrow">TAKE A BREATH</span><h2>战场已暂停</h2><p>时钟与战斗已冻结。准备好了，再出发。</p><div class="attribute-grid">${attributeRows(state.player).map(attribute => `<div><small>${attribute.label}</small><b>${attribute.value}</b></div>`).join('')}</div><div class="dialog-actions"><button class="primary-button" data-action="resume">${icon('play')} 继续战斗</button><button class="secondary-button" data-action="settings">${icon('settings')} 设置</button><button class="quiet-button" data-action="leave">${icon('home')} 返回首页</button></div>`, 'compact-dialog', '暂停游戏');
+  return dialog(`<div class="dialog-emblem">${icon('pause')}</div><span class="eyebrow">TAKE A BREATH</span><h2>战场已暂停</h2><p>时钟与战斗已冻结。准备好了，再出发。</p>${attributeStrip(state.player, 'div', 'attribute-grid')}<div class="dialog-actions"><button class="primary-button" data-action="resume">${icon('play')} 继续战斗</button><button class="secondary-button" data-action="settings">${icon('settings')} 设置</button><button class="quiet-button" data-action="leave">${icon('home')} 返回首页</button></div>`, 'compact-dialog', '暂停游戏');
 }
 export function confirmLeaveHTML(): string {
   return dialog(`<div class="dialog-emblem">${icon('home')}</div><h2>结束本次挑战？</h2><p>进行中的对局不会保存，也不计入完成成绩。</p><div class="dialog-actions"><button class="primary-button" data-action="menu">返回首页</button><button class="secondary-button" data-action="pause">留在战场</button></div>`, 'compact-dialog', '确认返回首页');
@@ -25,7 +28,7 @@ function changeDetail(choice: UpgradeChoice, state: GameState): string {
 }
 export function upgradeHTML(state: GameState, eventReward: boolean): string {
   const names = { new: '新技能', level: '技能升级', element: '元素注入', behavior: '行为强化', fusion: '元素融合', stat: '属性强化' };
-  return dialog(`<div class="upgrade-heading"><span class="eyebrow">${eventReward ? 'EVENT REWARD' : 'EVOLVE YOUR BUILD'}</span><h2>${eventReward ? '试炼完成，选择奖励' : '选择下一次进化'}</h2><p>${eventReward ? '免费强化，不消耗经验。' : `等级 ${state.level} · 让你的几何之力继续生长。`}${state.pendingUpgrades > 1 ? ` 还有 ${state.pendingUpgrades - 1} 次选择。` : ''}</p></div><div class="upgrade-grid">${state.choices.map((choice, index) => `<button class="upgrade-card" data-choice="${choice.id}"><span class="upgrade-kind">${names[choice.kind]}<small>0${index + 1}</small></span>${geometry(choice.skillId ?? choice.element ?? choice.id)}<h3>${escapeHTML(choice.name)}</h3>${choice.currentLevel ? `<span class="upgrade-level">LV. ${choice.currentLevel} → ${choice.currentLevel + 1}</span>` : ''}${changeDetail(choice, state)}<p>${escapeHTML(choice.description)}</p><span class="choose-label">选择此强化 ${icon('arrow')}</span></button>`).join('')}</div><div class="upgrade-footer"><span>战斗已冻结，放心选择。</span><button class="secondary-button" data-action="reroll" ${state.rerolls <= 0 ? 'disabled' : ''}>${icon('reroll')} 重抽 <b>${state.rerolls} / ${CONFIG.maxRerolls}</b></button></div>`, 'upgrade-dialog', '选择强化');
+  return dialog(`<div class="upgrade-heading"><span class="eyebrow">${eventReward ? 'EVENT REWARD' : 'EVOLVE YOUR BUILD'}</span><h2>${eventReward ? '试炼完成，选择奖励' : '选择下一次进化'}</h2><p>${eventReward ? '免费强化，不消耗经验。' : `等级 ${state.level} · 让你的几何之力继续生长。`}${state.pendingUpgrades > 1 ? ` 还有 ${state.pendingUpgrades - 1} 次选择。` : ''}</p></div>${attributeStrip(state.player, 'span', 'stat-strip center')}<div class="upgrade-grid">${state.choices.map((choice, index) => `<button class="upgrade-card" data-choice="${choice.id}"><span class="upgrade-kind">${names[choice.kind]}<small>0${index + 1}</small></span>${geometry(choice.skillId ?? choice.element ?? choice.id)}<h3>${escapeHTML(choice.name)}</h3>${choice.currentLevel ? `<span class="upgrade-level">LV. ${choice.currentLevel} → ${choice.currentLevel + 1}</span>` : ''}${changeDetail(choice, state)}<p>${escapeHTML(choice.description)}</p><span class="choose-label">选择此强化 ${icon('arrow')}</span></button>`).join('')}</div><div class="upgrade-footer"><span>战斗已冻结，放心选择。</span><button class="secondary-button" data-action="reroll" ${state.rerolls <= 0 ? 'disabled' : ''}>${icon('reroll')} 重抽 <b>${state.rerolls} / ${CONFIG.maxRerolls}</b></button></div>`, 'upgrade-dialog', '选择强化');
 }
 export function resultHTML(state: GameState, newly: CharacterId[]): string {
   const victory = state.result === 'victory';

@@ -912,6 +912,12 @@ small {
   white-space: nowrap
 }
 
+.stat-strip.center {
+  justify-content: center;
+  max-width: none;
+  margin: 0 auto 24px
+}
+
 .attribute-grid {
   display: grid;
   grid-template-columns: repeat(2,1fr);

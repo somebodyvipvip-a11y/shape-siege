@@ -27,11 +27,13 @@ export function timeLabel(time: number): string { const value = Math.floor(time)
 export function attributeRows(player: Player): { label: string; value: string }[] {
   const percent = (value: number): string => `${Math.round(value * 100)}%`;
   return [
-    { label: '生命上限', value: `${Math.round(player.maxHp)}` },
     { label: '移动速度', value: `${Math.round(player.speed)}${player.speedBonus > 0 ? ` +${percent(player.speedBonus)}` : ''}` },
     { label: '伤害加成', value: `+${percent(player.damageBonus)}` },
     { label: '冷却缩减', value: percent(player.cooldownReduction) },
     { label: '拾取范围', value: `${Math.round(player.pickupRadius)}` },
   ];
+}
+export function lifeRow(player: Player): { label: string; value: string } {
+  return { label: '生命', value: `${Math.ceil(player.hp)} / ${Math.round(player.maxHp)}` };
 }
 export function escapeHTML(text: string): string { return text.replace(/[&<>"']/g, value => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[value]!); }
