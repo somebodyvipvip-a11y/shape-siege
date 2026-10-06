@@ -20,7 +20,9 @@ class TouchElement extends EventTarget {
   classes = new Set<string>();
   classList = { add: (name: string) => this.classes.add(name), remove: (name: string) => this.classes.delete(name) };
   knob = { style: { transform: '' } };
-  querySelector(): unknown { return this.knob; }
+  base = { style: { left: '', top: '' } };
+  querySelector(selector: string): unknown { return selector === '.joystick' ? this.base : this.knob; }
+  getBoundingClientRect(): { left: number; top: number } { return { left: 10, top: 20 }; }
   setPointerCapture(id: number): void { this.captured.add(id); }
   hasPointerCapture(id: number): boolean { return this.captured.has(id); }
   releasePointerCapture(id: number): void { this.captured.delete(id); }
@@ -179,4 +181,21 @@ describe('rendering matches simulation geometry', () => {
     expect(portrait.width * portrait.height).toBeCloseTo(landscape.width * landscape.height, 8);
     expect(viewportFor(100, 2000).ratio).toBe(.65); expect(viewportFor(2000, 100).ratio).toBe(1.85);
   });
+});
+
+
+it('floating joystick starts at each landing point and releases capture on lift', () => {
+  const f = inputFixture();
+  for (const [x, y] of [[35, 180], [120, 410]]) {
+    f.stick.dispatchEvent(down(7, x, y));
+    expect(f.stick.base.style).toEqual({ left: `${x - 10}px`, top: `${y - 20}px` });
+    expect(f.input.read().x).toBe(0); expect(f.input.read().y).toBe(0);
+    f.stick.dispatchEvent(event('pointermove', { pointerId: 7, clientX: x, clientY: y - 44 }));
+    expect(f.input.read().y).toBe(-1);
+    f.stick.dispatchEvent(event('pointerup', { pointerId: 7 }));
+    expect(f.input.read()).toEqual({ x: 0, y: 0, skill: false, ultimate: false });
+    expect(f.stick.classes.size).toBe(0); expect(f.stick.captured.size).toBe(0);
+    expect(f.stick.base.style).toEqual({ left: '', top: '' });
+  }
+  f.input.destroy();
 });

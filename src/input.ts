@@ -36,7 +36,12 @@ export class GameInput {
   }
   bind(joystick: HTMLElement, skill: HTMLButtonElement, ultimate: HTMLButtonElement): void {
     const visual = joystick.querySelector<HTMLElement>('.stick-knob');
-    const reset = (): void => { if (visual) visual.style.transform = ''; joystick.classList.remove('active'); };
+    const base = joystick.querySelector<HTMLElement>('.joystick');
+    const reset = (): void => {
+      if (visual) visual.style.transform = '';
+      if (base) { base.style.left = ''; base.style.top = ''; }
+      joystick.classList.remove('active');
+    };
     this.resetStick = () => {
       if (this.pointerId !== null && joystick.hasPointerCapture(this.pointerId)) joystick.releasePointerCapture(this.pointerId);
       reset();
@@ -46,6 +51,11 @@ export class GameInput {
       if (!this.enabled || this.pointerId !== null || e.button > 0) return;
       e.preventDefault(); this.onGesture(); this.pointerId = e.pointerId;
       this.origin = { x: e.clientX, y: e.clientY }; this.stick = { x: 0, y: 0 };
+      if (base) {
+        const bounds = joystick.getBoundingClientRect();
+        base.style.left = `${e.clientX - bounds.left}px`;
+        base.style.top = `${e.clientY - bounds.top}px`;
+      }
       joystick.setPointerCapture(e.pointerId); joystick.classList.add('active');
     });
     this.listen(joystick, 'pointermove', event => {
@@ -59,6 +69,7 @@ export class GameInput {
     const cancel = (event: Event): void => {
       const e = event as PointerEvent;
       if (e.pointerId !== this.pointerId) return;
+      if (joystick.hasPointerCapture(e.pointerId)) joystick.releasePointerCapture(e.pointerId);
       this.pointerId = null; this.stick = { x: 0, y: 0 }; reset();
     };
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) this.listen(joystick, type, cancel);

@@ -3021,3 +3021,25 @@ small {
     transition: none
   }
 }
+
+
+/* 起手落点即圆心：覆盖左半战场，按钮和弹窗保持独立命中。 */
+.movement-zone {
+  position: absolute;
+  inset: 0 50% 0 0;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+}
+.movement-zone .joystick {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: none;
+  pointer-events: none;
+}
+.movement-zone.active .joystick { display: grid; }
+.movement-zone.active .stick-knob {
+  background: #63e2c330;
+  border-color: #63e2c3;
+}
+.ability-controls { margin-left: auto; }
