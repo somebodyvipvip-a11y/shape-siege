@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameApp } from '../src/app';
 import type { GameWorld } from '../src/game/world';
+import { HUD } from '../src/ui/hud';
 
 const mocks = vi.hoisted(() => ({
   audio: { unlock: vi.fn(), startMusic: vi.fn(), stop: vi.fn(), play: vi.fn(), configure: vi.fn() },
@@ -60,6 +61,15 @@ describe('app audio and input coordination', () => {
     await start(); mocks.audio.startMusic.mockClear();
   });
   afterEach(() => { click('menu'); vi.unstubAllGlobals(); });
+  it('refreshes empty skill slots when a stage reward increases capacity without changing skills', () => {
+    const world = mocks.createRenderer.mock.calls.at(-1)![1] as GameWorld;
+    const hudRoot = new ElementPort(), hud = new HUD(hudRoot as unknown as HTMLElement);
+    hud.update(world.state);
+    const initialSkills = world.state.player.skills.length;
+    world.state.slots += 1;
+    hud.update(world.state);
+    expect(hudRoot.querySelector('#skill-slots').innerHTML.match(/class="skill-slot empty"/g)?.length).toBe(world.state.slots - initialSkills);
+  });
   it('keeps a held Esc paused until a new non-repeat press', async () => {
     dispatch(target, 'keydown', { code: 'Escape', repeat: false });
     dispatch(target, 'keydown', { code: 'Escape', repeat: true }); await flush();

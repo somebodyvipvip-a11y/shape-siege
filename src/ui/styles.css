@@ -3021,6 +3021,70 @@ small {
   }
 }
 
+.hud-summary,.hud-actions { display: flex; align-items: center; gap: 8px }
+.hud-summary #kills-value { background: #0b1020c2; padding: 8px 12px; border-radius: 7px; white-space: nowrap }
+.hud-actions .icon-button { width: 44px; height: 44px; min-height: 44px; padding: 0; flex: 0 0 44px }
+.hud-actions .stats-button { font-size: 11px }
+
+/* 手机 HUD 使用固定行与统一点击尺寸，覆盖历史分散的尺寸/绝对定位。 */
+@media(max-width:760px), (max-height:550px) and (max-width:900px) {
+  .battle-hud { padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)) }
+  .hud-top { display: grid; grid-template-columns: minmax(0,1fr) 88px; gap: 8px; align-items: stretch; flex-wrap: nowrap }
+  .vital-panel { width: auto; min-width: 0; height: 60px; padding: 7px 10px; border-radius: 8px }
+  .vital-label,.vital-label b { font-size: 10px }
+  .hp-meter { margin-top: 5px; height: 5px }
+  .shield-label { margin-top: 4px; font-size: 9px }
+  .time-panel { position: static; transform: none; margin: 0; padding: 7px 6px; min-width: 0; height: 60px; border-radius: 8px; display: flex; flex-direction: column; justify-content: center }
+  .time-panel strong { font-size: 21px; line-height: 1.1; letter-spacing: 1px }
+  .time-panel span { font-size: 8px; margin-top: 5px; letter-spacing: 0; white-space: nowrap }
+  .hud-right { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; min-width: 0; height: 44px }
+  .hud-summary,.hud-actions { gap: 6px; min-width: 0 }
+  .hud-right .hud-summary > *,.hud-summary #kills-value { display: inline-flex; align-items: center; justify-content: center; height: 44px; min-width: 42px; padding: 0 7px; margin: 0; font-size: 10px; font-weight: 600; line-height: 1; letter-spacing: 0; border-radius: 8px; white-space: nowrap; position: static; background: #0b1020da; border: 1px solid #35476170 }
+  .hud-summary .stage-badge { color: #9df3df }
+  .hud-summary .lives-badge { gap: 4px; color: #ffb3be }
+  .hud-actions .icon-button { width: 44px; height: 44px; min-height: 44px; border-radius: 8px; border: 1px solid #35476170; background: #0b1020da }
+  .hud-actions .icon-button svg { width: 20px; height: 20px }
+  .hud-actions .stats-button { width: 44px; font-size: 11px }
+  .xp-panel { position: static; max-width: none; width: 100%; height: 24px; margin: 8px 0 0; padding: 4px 8px; gap: 8px; border-radius: 6px }
+  .xp-panel b,.xp-panel span { font-size: 9px; white-space: nowrap }
+  .battle-hud > .stat-strip { display: none }
+  .skill-slots { display: grid; grid-template-columns: repeat(var(--skill-count,4),minmax(0,1fr)); position: absolute; left: calc(12px + env(safe-area-inset-left)); right: calc(12px + env(safe-area-inset-right)); top: calc(164px + env(safe-area-inset-top)); bottom: auto; transform: none; gap: 5px }
+  .skill-slot { width: auto; min-width: 0; height: 52px; padding: 3px 4px; border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center }
+  .skill-slot > .geo-icon { width: 22px; height: 22px; flex: 0 0 22px }
+  .skill-slot > span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; line-height: 12px }
+  .skill-slot > b { top: 3px; right: 4px; font-size: 8px; line-height: 10px }
+  .skill-slot > small { position: static; min-height: 7px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 6px; line-height: 7px }
+  .skill-slot.empty > span { font-size: 8px }
+  .battle-messages { position: absolute; top: calc(224px + env(safe-area-inset-top)); left: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px }
+  .battle-messages .boss-panel,.battle-messages .event-panel,.battle-messages .battle-warning { position: static; left: auto; right: auto; top: auto; width: 100%; max-width: none; transform: none; margin: 0; padding: 6px 9px; font-size: 9px }
+  .battle-messages .boss-panel { max-width: none }
+  .revive-banner { top: 42%; left: 50%; transform: translateX(-50%) }
+  .ability-button,.ultimate-button { width: 68px; min-height: 76px; height: 76px; border-radius: 12px }
+  .ability-controls { gap: 10px }
+  .ability-button .geo-icon { width: 28px; height: 28px }
+}
+@media(max-height:550px) and (min-width:521px) and (max-width:900px) {
+  .battle-hud { padding: calc(8px + env(safe-area-inset-top)) 12px }
+  .hud-top { display: grid; grid-template-columns: minmax(130px,164px) 80px minmax(251px,1fr); gap: 8px; align-items: center }
+  .vital-panel,.time-panel { width: auto; height: 56px; min-width: 0; padding: 6px 8px }
+  .time-panel { position: static; margin: 0; transform: none }
+  .hud-right { grid-column: auto; display: flex; justify-content: flex-end; align-items: center; gap: 8px; height: 44px }
+  .hud-summary,.hud-actions { gap: 4px }
+  .hud-right .hud-summary > *,.hud-summary #kills-value { height: 44px; min-width: 36px; padding: 0 5px; font-size: 9px; letter-spacing: 0 }
+  .hud-actions .icon-button { width: 44px; height: 44px; min-height: 44px; flex: 0 0 44px }
+  .xp-panel { position: absolute; top: calc(72px + env(safe-area-inset-top)); left: 12px; right: auto; width: 242px; height: 24px; margin: 0 }
+  .battle-hud > .stat-strip { display: none }
+  .skill-slots { left: 270px; right: 12px; top: calc(72px + env(safe-area-inset-top)); bottom: auto; transform: none; display: grid; grid-template-columns: repeat(var(--skill-count,4),minmax(0,1fr)); gap: 4px }
+  .skill-slot { width: auto; height: 46px; padding: 2px 3px; overflow: hidden }
+  .skill-slot > .geo-icon { width: 20px; height: 20px; flex-basis: 20px }
+  .skill-slot > span { font-size: 8px; line-height: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100% }
+  .skill-slot > small { position: static; font-size: 6px; line-height: 7px }
+  .battle-messages { position: absolute; top: calc(104px + env(safe-area-inset-top)); left: 12px; right: auto; width: 242px; display: flex; flex-direction: column; gap: 5px }
+  .battle-messages .boss-panel,.battle-messages .event-panel,.battle-messages .battle-warning { position: static; width: 100%; transform: none; padding: 5px 8px; margin: 0 }
+  .revive-banner { top: 42% }
+  .ability-button,.ultimate-button { width: 64px; height: 72px; min-height: 72px }
+}
+
 @media(prefers-reduced-motion:reduce) {
   .orbit-outer,.ultimate-button.ready {
     animation: none
