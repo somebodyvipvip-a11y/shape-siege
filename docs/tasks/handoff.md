@@ -1,10 +1,10 @@
 # Shape Siege · 当前交接文档
 
-更新日期：2026-10-07。唯一版本来源 VERSION，本地 0.13.1；已验证线上 0.12.1，发布基线 66bb070。本轮加入三个已批准角色，并修复手机暂停/属性/关卡/技能栏排版。
+更新日期：2026-10-07。唯一版本来源 VERSION，本地与已验证线上均为 0.13.1，功能发布提交 2656416（英雄提交 69323c5）。本轮加入三个已批准角色，并修复手机暂停/属性/关卡/技能栏排版。
 
 ## 交付规则
 
-遵循 AGENTS.md：检查 diff、必要验证、SemVer、CHANGELOG 与本交接、Conventional Commit。用户长期授权大更新验证后自动更新 Pages；本轮两个改动完成后一起发布，明确要求暂不发布时遵循最新指令。
+遵循 AGENTS.md：检查 diff、必要验证、SemVer、CHANGELOG 与本交接、Conventional Commit。用户长期授权大更新验证后自动更新 Pages；本轮两个独立改动已一起发布，明确要求暂不发布时遵循最新指令。
 
 ## 实现与关键文件
 
@@ -26,13 +26,13 @@
 ## 尚需完成
 
 1. 手机布局已修复：44px 状态/按钮、等宽技能槽、横屏适配、提示区域与复活倒计时分离；全量属性通过按钮查看。英雄提交 69323c5，手机修复作为独立补丁提交。
-2. 完成后推送并检查对应 Pages workflow 与实际线上版本，更新发布记录。
+2. 发布已完成：工作流 37498955633 的测试、构建、部署成功；线上公告 v0.13.1、六新英雄入口及 360×800 六边形对局验证，暂停/属性按钮 44×44。截图 .superpowers/screenshots/pages-v0.13.1-mobile.png（本地忽略产物）。
 3. 真机 iOS Safari/Android Chrome、真人平衡、手机后期帧耗时仍待验证。
 
 ## 启动与发布
 
 Node.js 24/npm 11，PowerShell：npm ci；npm run dev；npm test；npm run build。VERSION 改动后重启 dev；可用 npm exec vite preview -- --host 127.0.0.1 --port 4173 预览生产包，端口以输出为准。
 
-Git main，仓库 https://github.com/somebodyvipvip-a11y/shape-siege，Pages https://somebodyvipvip-a11y.github.io/shape-siege/。推送触发 pages.yml 安装、测试、构建、部署，PAGES_ENABLED=true。最后已验证 0.12.1 工作流 37490988991，本轮尚未推送。
+Git main，仓库 https://github.com/somebodyvipvip-a11y/shape-siege，Pages https://somebodyvipvip-a11y.github.io/shape-siege/。推送触发 pages.yml 安装、测试、构建、部署，PAGES_ENABLED=true。本轮已验证 0.13.1 工作流 37498955633，功能提交 2656416。后续仅发布记录提交不会改动 VERSION。
 
 回放：设置 BALANCE_POLICY=casual 和可选 BALANCE_CHARACTERS=diamond,pentagon,hexagon，运行 npm exec vitest run -- --config scripts/balance.config.ts，结束清除环境变量。无账号/联机/局中保存，localStorage 为浏览器独立存档。
