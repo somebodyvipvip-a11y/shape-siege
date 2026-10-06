@@ -6,7 +6,7 @@ import { COLORS, ROLE_TEXT, geometry, icon, timeLabel } from './shared';
 export function menuHTML(selected: CharacterId, save: SaveData, version: string): string {
   const role = ROLE_TEXT[selected];
   return `<main class="menu-screen">
-    <header class="menu-header"><a class="brand" href="#" aria-label="方块大战首页"><span class="brand-mark"><i></i><i></i><i></i></span><span>方块大战<small>BLOCK BATTLE</small></span></a><nav><button class="quiet-button" data-action="help">${icon('keyboard')}<span>操作说明</span></button><button class="icon-button" data-action="settings" aria-label="打开设置">${icon('settings')}</button></nav></header>
+    <header class="menu-header"><a class="brand" href="#" aria-label="方块大战首页"><span class="brand-mark"><i></i><i></i><i></i></span><span>方块大战<small>BLOCK BATTLE</small></span></a><nav><button class="quiet-button" data-action="help" aria-label="打开操作说明">${icon('keyboard')}<span>操作说明</span></button><button class="icon-button" data-action="settings" aria-label="打开设置">${icon('settings')}</button></nav></header>
     <section class="hero-layout">
       <div class="hero-copy"><div class="eyebrow"><span class="status-dot"></span> 几何竞技场 · 单人生存</div><h1>以几何之力，<br>突破<span>重重包围。</span></h1><p class="hero-description">移动，生存，进化。<br>在不断涌来的怪潮中，构筑属于你的战斗轨道。</p><div class="hero-tags"><span>自动攻击</span><span>随机构筑</span><span>12 分钟挑战</span></div>
       <div class="best-score"><span class="score-icon">${icon('trophy')}</span><div><small>本地最好成绩</small><strong>${save.best.kills}<span> 击杀</span></strong></div><div class="best-divider"></div><div><small>最长存活</small><strong>${timeLabel(save.best.time)}</strong></div></div></div>

@@ -19,16 +19,21 @@ function enemy(g: Graphics, e: Enemy, time: number, reduced: boolean): void {
     polygon(g, e.x, e.y, e.radius, 6, reduced ? 0 : time * .2);
     polygon(g, e.x, e.y, e.radius * .7, 6, reduced ? 0 : -time * .35, false);
     g.fillStyle(color, .8); polygon(g, e.x, e.y, e.radius * .26, 6);
-  } else if (e.kind === 'runner' || e.kind === 'charger' || e.kind === 'elite-charger') {
+  } else if (e.kind === 'runner') {
+    const points = [{ x: e.x, y: e.y - e.radius }, { x: e.x + e.radius * .46, y: e.y }, { x: e.x, y: e.y + e.radius }, { x: e.x - e.radius * .46, y: e.y }];
+    g.fillPoints(points, true); g.strokePoints(points, true);
+  } else if (e.kind === 'charger' || e.kind === 'elite-charger') {
     const angle = Math.atan2(e.attackDirection.y, e.attackDirection.x);
     polygon(g, e.x, e.y, e.radius, 3, e.state === 'chase' ? -Math.PI / 2 : angle);
-    if (e.kind !== 'runner') { g.lineStyle(1.5, color, .75); polygon(g, e.x, e.y, e.radius * .48, 3, -Math.PI / 2, false); }
+    g.lineStyle(1.5, color, .75); polygon(g, e.x, e.y, e.radius * .48, 3, -Math.PI / 2, false);
   } else if (e.kind === 'tank' || e.kind === 'elite-tank') {
-    polygon(g, e.x, e.y, e.radius, 8, Math.PI / 8); g.lineStyle(2, color, .6); polygon(g, e.x, e.y, e.radius * .55, 4, Math.PI / 4, false);
+    polygon(g, e.x, e.y, e.radius, 6, Math.PI / 6); g.lineStyle(2, color, .6); polygon(g, e.x, e.y, e.radius * .62, 6, Math.PI / 6, false);
   } else if (e.kind === 'ranged') {
     polygon(g, e.x, e.y, e.radius, 4); g.lineStyle(2, color, 1); g.strokeCircle(e.x, e.y, e.radius * .35);
   } else {
-    polygon(g, e.x, e.y, e.radius, 5); g.lineStyle(2, color, .9); g.lineBetween(e.x - 4, e.y - 4, e.x + 4, e.y + 4); g.lineBetween(e.x + 4, e.y - 4, e.x - 4, e.y + 4);
+    const half = e.radius / Math.SQRT2;
+    const points = [{ x: e.x - half, y: e.y - half }, { x: e.x - half * .4, y: e.y - half }, { x: e.x, y: e.y - half * .4 }, { x: e.x + half * .4, y: e.y - half }, { x: e.x + half, y: e.y - half }, { x: e.x + half, y: e.y + half }, { x: e.x - half, y: e.y + half }];
+    g.fillPoints(points, true); g.strokePoints(points, true);
   }
   if (e.kind.startsWith('elite') || e.kind === 'boss') {
     g.lineStyle(2, color, .8); dashedCircle(g, e.x, e.y, e.radius + 9, 12);

@@ -94,6 +94,25 @@ describe('unified input lifecycle', () => {
     target.dispatchEvent(event('keydown', { code: 'Escape', repeat: false }));
     expect(panel).toBe('none'); expect(pause).not.toHaveBeenCalled(); input.destroy();
   });
+  it('holding Esc pauses once and consumes repeats without resuming or closing a dialog', () => {
+    const target = new EventTarget(); let input: GameInput; let panel = 'none';
+    const resume = vi.fn(() => { panel = 'none'; input.setEnabled(true); }), close = vi.fn();
+    target.addEventListener('keydown', e => { if (panel !== 'none') handleDialogEscape(e as KeyboardEvent, panel, resume, close); });
+    const pause = vi.fn(() => { panel = 'pause'; input.setEnabled(false); });
+    input = new GameInput(target as Window, pause); input.setEnabled(true);
+    target.dispatchEvent(event('keydown', { code: 'Escape', repeat: false }));
+    for (let i = 0; i < 3; i++) {
+      const repeat = event('keydown', { code: 'Escape', repeat: true }); target.dispatchEvent(repeat);
+      expect(repeat.defaultPrevented).toBe(true);
+    }
+    expect(panel).toBe('pause'); expect(pause).toHaveBeenCalledTimes(1); expect(resume).not.toHaveBeenCalled();
+    panel = 'settings'; target.dispatchEvent(event('keydown', { code: 'Escape', repeat: true }));
+    expect(close).not.toHaveBeenCalled();
+    target.dispatchEvent(event('keyup', { code: 'Escape' })); panel = 'pause';
+    target.dispatchEvent(event('keydown', { code: 'Escape', repeat: false }));
+    expect(panel).toBe('none'); expect(resume).toHaveBeenCalledTimes(1); expect(pause).toHaveBeenCalledTimes(1);
+    input.destroy();
+  });
   it('Esc cannot bypass a pending upgrade dialog', () => {
     const resume = vi.fn(), close = vi.fn(); handleDialogEscape(event('keydown', { code: 'Escape' }) as KeyboardEvent, 'upgrade', resume, close);
     expect(resume).not.toHaveBeenCalled(); expect(close).not.toHaveBeenCalled();

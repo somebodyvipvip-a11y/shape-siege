@@ -25,6 +25,7 @@ export class GameApp {
   private running = false;
   private starting = false;
   private generation = 0;
+  private audioGeneration = 0;
   private hudElapsed = 0;
   private seenHelp = false;
   private resultSaved = false;
@@ -45,7 +46,7 @@ export class GameApp {
   private showMenu(): void {
     this.generation++; this.starting = false; this.running = false;
     this.input?.destroy(); this.input = null; this.renderer?.destroy(); this.renderer = null; this.world = null; this.hud = null;
-    this.audio.stop(); this.panel = 'none'; this.panelSignature = ''; this.resultSaved = false;
+    this.stopAudio(); this.panel = 'none'; this.panelSignature = ''; this.resultSaved = false;
     document.body.classList.remove('in-battle');
     this.root.innerHTML = `<div id="screen">${menuHTML(this.selected, this.save.data, this.version)}</div><div id="overlay-root"></div><div id="notice-root" aria-live="polite"></div>`;
     this.overlay = this.root.querySelector('#overlay-root')!; this.notice(this.save.warning);
@@ -58,7 +59,7 @@ export class GameApp {
     if (this.starting) return;
     if (!skipHelp && !this.seenHelp && this.save.data.stats.runs === 0) { this.setPanel('help', helpHTML(false)); return; }
     this.seenHelp = true;
-    this.renderer?.destroy(); this.input?.destroy(); this.audio.stop();
+    this.renderer?.destroy(); this.input?.destroy(); this.stopAudio();
     const generation = ++this.generation;
     this.starting = true; this.running = false; this.resultSaved = false; this.newly = []; this.rewards = []; this.hudElapsed = 0;
     document.body.classList.add('in-battle');
@@ -68,9 +69,9 @@ export class GameApp {
     const world = new GameWorld(this.selected, crypto.getRandomValues(new Uint32Array(1))[0]);
     this.world = world; world.setAutoSkill(this.save.data.settings.autoSkill);
     this.hud = new HUD(this.root.querySelector('#hud-root')!); this.hud.update(world.state);
-    this.input = new GameInput(window, () => this.pause(), () => { void this.audio.unlock().then(() => { if (this.running && this.panel === 'none') this.audio.startMusic(); }); });
+    this.input = new GameInput(window, () => this.pause(), () => this.requestMusic());
     this.input.bind(this.root.querySelector('#joystick')!, this.root.querySelector('#skill-button')!, this.root.querySelector('#ultimate-button')!);
-    void this.audio.unlock();
+    const audioReady = this.audio.unlock();
     try {
       const { createBattleRenderer } = await import('./render/scene');
       if (generation !== this.generation) return;
@@ -78,7 +79,7 @@ export class GameApp {
       if (generation !== this.generation) { renderer.destroy(); return; }
       this.renderer = renderer; this.starting = false; this.running = true;
       if (document.hidden || world.state.paused) { world.setPaused(true); this.setPanel('pause', pauseHTML()); }
-      else { this.setPanel('none'); this.audio.startMusic(); }
+      else { this.setPanel('none'); this.requestMusic(audioReady); }
       this.notice(this.save.warning);
     } catch (error) {
       if (generation !== this.generation) return;
@@ -104,7 +105,7 @@ export class GameApp {
     this.hudElapsed += dt;
     if (this.hudElapsed >= .1) { this.hudElapsed = 0; this.hud?.update(state); }
     if (state.result) {
-      if (!this.resultSaved) { this.resultSaved = true; this.newly.push(...this.save.finish(state)); this.audio.stop(); this.notice(this.save.warning); this.hud?.update(state); }
+      if (!this.resultSaved) { this.resultSaved = true; this.newly.push(...this.save.finish(state)); this.stopAudio(); this.notice(this.save.warning); this.hud?.update(state); }
       if (this.panel !== 'result') { this.setPanel('result', resultHTML(state, this.newly)); this.audio.play('result'); }
       return;
     }
@@ -124,7 +125,7 @@ export class GameApp {
       if (this.lastFocus?.isConnected) this.lastFocus.focus({ preventScroll: true });
     } else {
       this.overlay.querySelector<HTMLElement>('[role="dialog"]')?.focus({ preventScroll: true });
-      this.audio.stop();
+      this.stopAudio();
     }
     this.hud?.update(this.world!.state);
   }
@@ -141,10 +142,19 @@ export class GameApp {
   private resume(): void {
     if (!this.world || this.world.state.result) return;
     if (this.world.state.pendingUpgrades > 0) { this.setPanel('upgrade', upgradeHTML(this.world.state, this.rewards[0] ?? false)); return; }
-    this.world.setPaused(false); this.setPanel('none'); void this.audio.unlock().then(() => this.audio.startMusic());
+    this.world.setPaused(false); this.setPanel('none'); this.requestMusic();
+  }
+  private stopAudio(): void { this.audioGeneration++; this.audio.stop(); }
+  private requestMusic(ready = this.audio.unlock()): void {
+    const generation = this.generation, audioGeneration = this.audioGeneration, world = this.world;
+    void ready.then(() => {
+      if (generation !== this.generation || audioGeneration !== this.audioGeneration || world !== this.world) return;
+      if (!world || !this.running || this.panel !== 'none' || document.hidden || world.state.paused || world.state.pendingUpgrades > 0 || world.state.result) return;
+      this.audio.startMusic();
+    });
   }
   private backgroundPause(): void {
-    this.input?.clear(); this.audio.stop();
+    this.input?.clear(); this.stopAudio();
     if (!this.world || this.world.state.result) return;
     this.world.setPaused(true);
     if (this.running && this.panel === 'none') this.setPanel('pause', pauseHTML());
@@ -169,7 +179,7 @@ export class GameApp {
       // Replace immediately; a queued click can only target a detached card.
       if (this.world.state.pendingUpgrades) { this.setPanel('upgrade', upgradeHTML(this.world.state, this.rewards[0] ?? false)); this.panelSignature = signature === '' ? '' : 'refresh'; }
       else if (this.world.state.paused) this.setPanel('pause', pauseHTML());
-      else { this.setPanel('none'); this.audio.startMusic(); }
+      else { this.setPanel('none'); this.requestMusic(); }
       return;
     }
     switch (button.dataset.action) {
@@ -200,7 +210,12 @@ export class GameApp {
     else if (key === 'quality') settings.quality = control.value === 'low' ? 'low' : 'default';
     else settings[key] = (control as HTMLInputElement).checked;
     this.world?.setAutoSkill(settings.autoSkill); this.applySettings(); this.renderer?.resize(); this.save.persist(); this.notice(this.save.warning);
-    if (key === 'sound') { void this.audio.unlock().then(() => this.audio.play('select')); }
+    if (key === 'sound') {
+      const generation = this.generation, audioGeneration = this.audioGeneration;
+      void this.audio.unlock().then(() => {
+        if (generation === this.generation && audioGeneration === this.audioGeneration && this.panel === 'settings' && !document.hidden) this.audio.play('select');
+      });
+    }
   }
   private applySettings(): void { this.audio.configure(this.save.data.settings); document.documentElement.classList.toggle('reduced-motion', this.save.data.settings.reducedMotion); }
   private dialogKey(event: KeyboardEvent): void {
