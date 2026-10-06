@@ -18,6 +18,7 @@ export const CONFIG = {
   enemyLimit: 250, playerProjectileLimit: 400, enemyProjectileLimit: 150, effectLimit: 300, pickupLimit: 300,
   gridSize: 128, bossAt: STAGE_TIMES.boss, timeout: 720, contactProtection: .5, xpRadius: 80,
   skillMaxLevel: 8, autoSlots: 4, maxRerolls: 2, speedBonusCap: .3, cooldownCap: .4,
+  critCap: .6, critMultBase: 1.5, critMultCap: 2.5, dodgeCap: .4, armorCap: 20,
   chargeRequired: 20, eventLifetime: 90, eventRadius: 150,
   projectileSpeed: 400, pickupSpeed: 500, baseDamageGrowth: .12,
 } as const;

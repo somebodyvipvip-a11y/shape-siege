@@ -31,6 +31,10 @@ export function attributeRows(player: Player): { label: string; value: string }[
     { label: '伤害加成', value: `+${percent(player.damageBonus)}` },
     { label: '冷却缩减', value: percent(player.cooldownReduction) },
     { label: '拾取范围', value: `${Math.round(player.pickupRadius)}` },
+    { label: '暴击率', value: percent(player.critChance) },
+    { label: '暴击伤害', value: `${player.critMultiplier.toFixed(1)}×` },
+    { label: '闪避', value: percent(player.dodge) },
+    { label: '护甲', value: `${Math.round(player.armor)}` },
   ];
 }
 export function lifeRow(player: Player): { label: string; value: string } {

@@ -11,6 +11,7 @@ export interface Player extends Vec {
   shield: number; shieldTime: number; invulnerable: number; energy: number;
   skillCooldown: number; skillDuration: number; ultimateDuration: number; ultimateTick: number;
   lastDirection: Vec; speedBonus: number; cooldownReduction: number; damageBonus: number; pickupRadius: number;
+  critChance: number; critMultiplier: number; dodge: number; armor: number;
   dashTime: number; dashRemaining: number; dashDirection: Vec; skills: SkillState[];
 }
 export interface Burn { dps: number; remaining: number; skillId: SkillId }

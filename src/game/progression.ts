@@ -49,6 +49,10 @@ export class Progression {
     pool.push({ id: 'stat:pickup', kind: 'stat', name: '拾取强化', description: '经验吸取范围增加 20' });
     if (p.speedBonus < CONFIG.speedBonusCap) pool.push({ id: 'stat:speed', kind: 'stat', name: '移动强化', description: '移动速度增加 5%，最高增加 30%' });
     if (p.cooldownReduction < CONFIG.cooldownCap) pool.push({ id: 'stat:cooldown', kind: 'stat', name: '冷却强化', description: '冷却缩减增加 5%，最高 40%' });
+    if (p.critChance < CONFIG.critCap) pool.push({ id: 'stat:crit', kind: 'stat', name: '暴击强化', description: `暴击率增加 8%，最高 ${Math.round(CONFIG.critCap * 100)}%` });
+    if (p.critMultiplier < CONFIG.critMultCap) pool.push({ id: 'stat:critDamage', kind: 'stat', name: '暴击伤害', description: `暴击倍率增加 0.1，最高 ${CONFIG.critMultCap}×` });
+    if (p.dodge < CONFIG.dodgeCap) pool.push({ id: 'stat:dodge', kind: 'stat', name: '闪避强化', description: `接触伤害闪避增加 5%，最高 ${Math.round(CONFIG.dodgeCap * 100)}%` });
+    if (p.armor < CONFIG.armorCap) pool.push({ id: 'stat:armor', kind: 'stat', name: '护甲强化', description: `受到的所有伤害减少 2，最高 ${CONFIG.armorCap}` });
     if (p.hp < p.maxHp) pool.push({ id: 'stat:heal', kind: 'stat', name: '生命恢复', description: '恢复最大生命的 15%' });
     pool.push({ id: 'stat:damage', kind: 'stat', name: '伤害强化', description: '所有直接伤害增加 3%' });
     return pool;
@@ -80,6 +84,10 @@ export class Progression {
       p.speed = CHARACTERS[p.characterId].speed * (1 + p.speedBonus);
     } else if (choice.id === 'stat:pickup') p.pickupRadius += 20;
     else if (choice.id === 'stat:cooldown') p.cooldownReduction = Math.min(CONFIG.cooldownCap, p.cooldownReduction + .05);
+    else if (choice.id === 'stat:crit') p.critChance = Math.min(CONFIG.critCap, p.critChance + .08);
+    else if (choice.id === 'stat:critDamage') p.critMultiplier = Math.min(CONFIG.critMultCap, p.critMultiplier + .1);
+    else if (choice.id === 'stat:dodge') p.dodge = Math.min(CONFIG.dodgeCap, p.dodge + .05);
+    else if (choice.id === 'stat:armor') p.armor = Math.min(CONFIG.armorCap, p.armor + 2);
     else if (choice.id === 'stat:heal') p.hp = Math.min(p.maxHp, p.hp + p.maxHp * .15);
     else p.damageBonus += .03;
     s.pendingUpgrades--;

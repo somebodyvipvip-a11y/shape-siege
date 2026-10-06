@@ -443,3 +443,53 @@ describe('导演、地图事件与结算', () => {
     expect(world.state.pickups.length).toBeLessThanOrEqual(CONFIG.pickupLimit);
   }, 30000);
 });
+
+describe('暴击、闪避与护甲', () => {
+  it('暴击率 100% 时按暴击倍率放大玩家伤害', () => {
+    const world = new GameWorld('circle', 3);
+    const enemy = dummy(world, 100);
+    world.state.player.critChance = 1; world.state.player.critMultiplier = 2;
+    world.damage(enemy, 50, 'homing', false);
+    expect(enemy.hp).toBe(900);
+  });
+  it('暴击率为 0 时不消耗模拟随机数，种子流保持一致', () => {
+    const a = new GameWorld('circle', 21), b = new GameWorld('circle', 21);
+    dummy(a, 100); dummy(b, 100);
+    a.damage(a.state.enemies[0], 10, 'homing', false);
+    expect(a.random()).toBe(b.random());
+  });
+  it('护甲全来源固定减伤且有 1 点下限，闪避只作用于接触伤害', () => {
+    const world = new GameWorld('circle', 4);
+    const p = world.state.player;
+    p.armor = 8;
+    world.damagePlayer(30);
+    expect(p.hp).toBe(88);
+    world.damagePlayer(5);
+    expect(p.hp).toBe(87);
+    p.hp = 110; p.dodge = .5;
+    world.damagePlayer(20);
+    expect(p.hp).toBe(98);
+    p.invulnerable = 0;
+    world.damagePlayer(20, true);
+    expect(p.hp).toBe(96);
+  });
+  it('升级卡可获得暴击、暴击伤害、闪避与护甲并受上限约束', () => {
+    const world = new GameWorld('circle', 6);
+    const p = world.state.player;
+    const pool = world.debug.candidates();
+    for (const id of ['stat:crit', 'stat:critDamage', 'stat:dodge', 'stat:armor']) expect(pool.some(c => c.id === id), id).toBe(true);
+    const pick = (id: string): void => {
+      world.state.pendingUpgrades = 1;
+      world.state.choices = [{ id, kind: 'stat', name: id, description: '' }];
+      expect(world.chooseUpgrade(id)).toBe(true);
+    };
+    pick('stat:crit'); pick('stat:critDamage'); pick('stat:dodge'); pick('stat:armor');
+    expect(p.critChance).toBeCloseTo(.08);
+    expect(p.critMultiplier).toBeCloseTo(1.6);
+    expect(p.dodge).toBeCloseTo(.05);
+    expect(p.armor).toBe(2);
+    p.critChance = CONFIG.critCap; p.armor = CONFIG.armorCap;
+    const capped = world.debug.candidates();
+    expect(capped.some(c => c.id === 'stat:crit' || c.id === 'stat:armor')).toBe(false);
+  });
+});

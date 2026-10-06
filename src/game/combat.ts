@@ -4,6 +4,9 @@ import type { Enemy, SkillId, WorldAccess } from './types';
 
 export function damageEnemy(world: WorldAccess, enemy: Enemy, amount: number, skillId: SkillId | 'active' | 'ultimate', elements = true): void {
   if (enemy.hp <= 0 || amount <= 0) return;
+  const p = world.state.player;
+  // 暴击作用于全部玩家伤害，掷骰走模拟随机流以保持种子确定性；暴击率为 0 时不消耗随机数。
+  if (p.critChance > 0 && world.random() < p.critChance) amount *= p.critMultiplier;
   const actual = Math.min(enemy.hp, amount);
   enemy.hp -= amount;
   world.state.damageBySkill[skillId] = (world.state.damageBySkill[skillId] ?? 0) + actual;
@@ -49,6 +52,9 @@ export function damagePlayer(world: WorldAccess, amount: number, contact = false
   const p = world.state.player;
   if (p.hp <= 0 || (contact && (p.invulnerable > 0 || p.dashTime > 0))) return;
   if (p.characterId === 'square' && p.ultimateDuration > 0) amount *= 1 - ULTIMATE.square.reduction;
+  // 防御结算顺序：闪避（仅接触伤害）→ 护甲（全来源固定减免，至少保留 1 点）→ 护盾 → 生命。
+  if (contact && p.dodge > 0) amount *= 1 - p.dodge;
+  if (p.armor > 0) amount = Math.max(1, amount - p.armor);
   const shieldDamage = Math.min(p.shield, amount);
   p.shield -= shieldDamage;
   p.hp = Math.max(0, p.hp - (amount - shieldDamage));
