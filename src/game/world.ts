@@ -94,7 +94,7 @@ export class GameWorld implements WorldAccess {
     if (!position || blocked(position, config.radius, s.obstacles)) return null;
     const scale = stageScale(s.stage);
     const hpScale = kind.startsWith('elite') || kind === 'boss' ? scale.eliteHp : scale.hp;
-    const hp = config.hp * hpScale;
+    const hp = kind === 'exploder' ? config.hp : config.hp * hpScale;
     const enemy: Enemy = {
       id: this.nextId(), x: position.x, y: position.y, kind, hp, maxHp: hp,
       radius: config.radius, speed: config.speed * scale.speed, damage: config.damage * scale.damage, state: 'chase', timer: kind === 'boss' ? 2 : 1,

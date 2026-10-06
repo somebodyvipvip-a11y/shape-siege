@@ -1,4 +1,4 @@
-import { CONFIG, DIRECTOR, ENEMY_BEHAVIOR as AI, stageAt } from './config';
+import { CONFIG, DIRECTOR, ENEMY_BEHAVIOR as AI, stageAt, stageEnemyAt } from './config';
 import { navigationDirection, prepareNavigation } from './navigation';
 import { stageScale } from './scaling';
 import { blocked, direction, distanceSq } from './spatial';
@@ -39,7 +39,7 @@ export class Director {
     const relief = DIRECTOR.eliteTimes.some(t => s.time >= t && s.time < t + 15) || (stage.periodicRelief && s.time % 50 > 42);
     const pressureMultiplier = s.time >= 150 ? 1.55 : s.time >= 60 ? 1.2 : 1.1;
     this.spawnTimer = (relief ? .8 : Math.max(.14, .7 - s.time / 800)) * stageScale(s.stage).spawn * pressureMultiplier;
-    for (let i = 0; i < stage.batch; i++) world.spawnEnemy(stage.enemies[Math.floor(world.random() * stage.enemies.length)]);
+    for (let i = 0; i < stage.batch; i++) world.spawnEnemy(stageEnemyAt(s.time, world.random()));
   }
   private openEvent(world: WorldAccess, kind: 'elite' | 'charge'): void {
     const p = world.state.player;

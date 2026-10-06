@@ -111,6 +111,9 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
   for (const explosion of state.explosions) {
     if (!visible(explosion, explosion.radius)) continue;
     const pulse = settings.reducedMotion ? 1 : .65 + .35 * Math.cos(state.time * Math.PI * 3);
+    g.fillStyle(PALETTE.explosion, .12 + .12 * pulse); g.lineStyle(2, PALETTE.explosion, .5 + .3 * pulse);
+    polygon(g, explosion.x, explosion.y, explosion.ghost.radius, 8);
+    g.strokeCircle(explosion.x, explosion.y, explosion.ghost.radius * .45);
     danger.fillStyle(PALETTE.explosion, .03 + .04 * pulse); danger.fillCircle(explosion.x, explosion.y, explosion.radius);
     danger.lineStyle(2, PALETTE.explosion, .55 + .35 * pulse); dashedCircle(danger, explosion.x, explosion.y, explosion.radius);
     danger.beginPath(); danger.arc(explosion.x, explosion.y, explosion.radius - 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, 1 - explosion.remaining / EXPLOSION.fuse)); danger.strokePath();
@@ -149,7 +152,7 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
     else g.fillCircle(shot.x, shot.y, shot.radius);
     if (shot.owner === 'player') drawElements(g, shot.x, shot.y, shot.radius + 2, p.skills.find(skill => skill.id === shot.skillId)?.elements ?? []);
   }
-  for (const e of state.enemies) if (visible(e, e.radius + 30)) enemy(g, e, state.time, settings.reducedMotion);
+  for (const e of state.enemies) if (e.hp > 0 && visible(e, e.radius + 30)) enemy(g, e, state.time, settings.reducedMotion);
   if (settings.quality !== 'low') { g.fillStyle(color, .075); g.fillCircle(p.x, p.y, 33); }
   g.lineStyle(1.5, color, .65); g.strokeCircle(p.x, p.y, p.radius + 9);
   if (p.shield > 0) { g.lineStyle(2.5, PALETTE.square, .8); g.strokeCircle(p.x, p.y, p.radius + 15); }

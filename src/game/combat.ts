@@ -1,5 +1,6 @@
 import { CONFIG, ELEMENT_CONFIG, ENEMIES, EXPLOSION, ULTIMATE } from './config';
 import { stageScale } from './scaling';
+import { navigationDirection, prepareNavigation } from './navigation';
 import { blocked, distanceSq } from './spatial';
 import type { Enemy, SkillId, WorldAccess } from './types';
 
@@ -8,14 +9,14 @@ export function damageEnemy(world: WorldAccess, enemy: Enemy, amount: number, sk
   const p = world.state.player;
   // 暴击作用于全部玩家伤害，掷骰走模拟随机流以保持种子确定性；暴击率为 0 时不消耗随机数。
   if (skillId !== 'explosion' && p.critChance > 0 && world.random() < p.critChance) amount *= p.critMultiplier;
-  if (enemy.kind === 'exploder' && !enemy.explosionArmed && skillId !== 'explosion') {
+  const actual = Math.min(enemy.hp, amount);
+  enemy.hp = Math.max(0, enemy.hp - amount);
+  if (enemy.kind === 'exploder' && enemy.hp === 0 && !enemy.explosionArmed && skillId !== 'explosion') {
     enemy.explosionArmed = true;
     const scale = stageScale(world.state.stage).damage;
     world.state.explosions.push({ sourceId: enemy.id, x: enemy.x, y: enemy.y, remaining: EXPLOSION.fuse,
-      radius: EXPLOSION.radius, damage: EXPLOSION.damage * scale, playerDamage: EXPLOSION.playerDamage * scale });
+      radius: EXPLOSION.radius, damage: EXPLOSION.damage * scale, playerDamage: EXPLOSION.playerDamage * scale, ghost: enemy });
   }
-  const actual = Math.min(enemy.hp, amount);
-  enemy.hp -= amount;
   world.state.damageBySkill[skillId] = (world.state.damageBySkill[skillId] ?? 0) + actual;
   if (elements && skillId !== 'active' && skillId !== 'ultimate' && skillId !== 'explosion') applyElements(world, enemy, amount, skillId);
 }
@@ -55,20 +56,23 @@ function applyElements(world: WorldAccess, enemy: Enemy, amount: number, id: Ski
     }
   }
 }
-/** 独立保存引信，死亡后仍爆炸，不受装饰特效容量影响。 */
+/** 死亡实体脱离敌人列表，由引信队列驱动亡灵移动；不参与攻击、接触或重复掉落。 */
 export function updateExplosions(world: WorldAccess, dt: number): void {
   const s = world.state;
+  prepareNavigation(world, 0);
   let write = 0;
   for (const explosion of s.explosions) {
-    const source = s.enemies.find(enemy => enemy.id === explosion.sourceId);
-    if (source) { explosion.x = source.x; explosion.y = source.y; }
+    const ghost = explosion.ghost;
+    const travel = ghost.speed * Math.min(dt, explosion.remaining);
+    const d = navigationDirection(world, ghost, s.player, travel);
+    world.move(ghost, d.x * travel, d.y * travel);
+    explosion.x = ghost.x; explosion.y = ghost.y;
     explosion.remaining -= dt;
     if (explosion.remaining > 1e-8) { s.explosions[write++] = explosion; continue; }
     for (const enemy of [...world.nearby(explosion, explosion.radius + 60)]) {
       if (enemy.id !== explosion.sourceId && distanceSq(enemy, explosion) <= (explosion.radius + enemy.radius) ** 2)
         world.damage(enemy, explosion.damage, 'explosion', false);
     }
-    if (source && source.hp > 0) world.damage(source, source.hp, 'explosion', false);
     if (distanceSq(s.player, explosion) <= (explosion.radius + s.player.radius) ** 2) world.damagePlayer(explosion.playerDamage);
     world.addEffect({ x: explosion.x, y: explosion.y, owner: 'player', skillId: 'explosion', kind: 'blast', radius: explosion.radius, life: .3 });
   }

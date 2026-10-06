@@ -41,7 +41,7 @@ export interface UpgradeChoice {
 }
 export interface MapEvent extends Vec { kind: 'elite' | 'charge'; remaining: number; progress: number; enemyId: number | null }
 export type GameResult = 'victory' | 'death' | 'timeout' | null;
-export interface PendingExplosion extends Vec { sourceId: number; remaining: number; radius: number; damage: number; playerDamage: number }
+export interface PendingExplosion extends Vec { sourceId: number; remaining: number; radius: number; damage: number; playerDamage: number; ghost: Enemy }
 export interface GameState {
   player: Player; enemies: Enemy[]; explosions: PendingExplosion[]; projectiles: Projectile[]; pickups: Pickup[]; effects: Effect[]; obstacles: Obstacle[];
   time: number; kills: number; level: number; xp: number; xpRequired: number; pendingUpgrades: number;

@@ -13,6 +13,14 @@ export const STAGES: readonly Stage[] = [
   { at: STAGE_TIMES.boss, name: '六边核心', batch: 3, enemies: mixedEnemies, periodicRelief: true },
 ];
 export function stageAt(time: number): Stage { return STAGES.reduce((stage, next) => time >= next.at ? next : stage, STAGES[0]); }
+/** 爆炸怪低权重混入正常怪池，保持总生成量和随机调用次数不变。 */
+export function stageEnemyAt(time: number, roll: number): EnemyKind {
+  const pool = stageAt(time).enemies;
+  const weight = (kind: EnemyKind): number => kind === 'exploder' ? EXPLOSION.spawnWeight : 1;
+  let remaining = roll * pool.reduce((sum, kind) => sum + weight(kind), 0);
+  for (const kind of pool) { remaining -= weight(kind); if (remaining < 0) return kind; }
+  return pool[pool.length - 1];
+}
 
 export const CONFIG = {
   step: 1 / 60, maxCatchup: 5, mapSize: 3200, playerRadius: 16, spawnClearance: 120,
@@ -57,7 +65,7 @@ export const ENEMIES: Record<EnemyKind, { hp: number; speed: number; radius: num
   tank: { hp: 90, speed: 50, radius: 23, damage: 18, xp: 4, xpDrops: 3, energy: 1 },
   charger: { hp: 50, speed: 76, radius: 16, damage: 16, xp: 2, xpDrops: 2, energy: 1 },
   ranged: { hp: 40, speed: 68, radius: 16, damage: 12, xp: 2, xpDrops: 2, energy: 1 },
-  exploder: { hp: 45, speed: 72, radius: 16, damage: 8, xp: 2, xpDrops: 2, energy: 1 },
+  exploder: { hp: 1, speed: 72, radius: 16, damage: 8, xp: 2, xpDrops: 2, energy: 1 },
   'elite-tank': { hp: 800, speed: 50, radius: 38, damage: 28, xp: 40, xpDrops: 10, energy: 20 },
   'elite-charger': { hp: 1000, speed: 95, radius: 32, damage: 26, xp: 40, xpDrops: 10, energy: 20 },
   // 首领需在 4:00–5:00 的 60 秒窗口内击破：基础生命 3000，与清退普通怪和降低召唤量共同保证输出窗口。
@@ -84,4 +92,4 @@ export const ENEMY_BEHAVIOR = {
   bossShotSpeed: 250, bossShotSpread: .18, bossBlastRadius: 85,
 } as const;
 
-export const EXPLOSION = { fuse: 2, radius: 110, damage: 70, playerDamage: 20 } as const;
+export const EXPLOSION = { fuse: 2, radius: 70, damage: 70, playerDamage: 20, spawnWeight: .2 } as const;

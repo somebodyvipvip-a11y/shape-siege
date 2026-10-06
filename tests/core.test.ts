@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHARACTERS, CONFIG, DIRECTOR, ENEMIES, ENEMY_BEHAVIOR, EXPLOSION, stageAt } from '../src/game/config';
+import { CHARACTERS, CONFIG, DIRECTOR, ENEMIES, ENEMY_BEHAVIOR, EXPLOSION, stageAt, stageEnemyAt } from '../src/game/config';
 import { SeededRandom } from '../src/game/random';
 import { Progression, rerollCap } from '../src/game/progression';
 import { updateExplosions } from '../src/game/combat';
@@ -836,7 +836,35 @@ describe('按怪物类型散落经验', () => {
 
 
 describe('爆炸怪引信与范围伤害', () => {
-  it('未被击中不触发，首次命中开始两秒引信，重复命中不重置', () => {
+  it('各阶段降低爆炸怪权重，早期不生成，后期仍保持一击死亡', () => {
+    const sample = (time: number): number => Array.from({ length: 10400 }, (_, i) => stageEnemyAt(time, (i + .5) / 10400)).filter(kind => kind === 'exploder').length;
+    expect(sample(59)).toBe(0);
+    expect(sample(60)).toBe(650); // 6.25%，原来 25%。
+    expect(sample(120)).toBe(400); expect(sample(150)).toBe(400); // 3.85%，原来 16.67%。
+    const world = new GameWorld('circle'); world.state.stage = 50;
+    const source = world.spawnEnemy('exploder', { x: 1700, y: 1600 })!;
+    expect(source.hp).toBe(1); world.damage(source, 1, 'base-circle');
+    expect(source.hp).toBe(0); expect(world.state.explosions).toHaveLength(1);
+  });
+  it('亡灵移动仍遵守地形碰撞，贴近英雄时不造成接触伤害', () => {
+    const world = new GameWorld('circle');
+    world.state.obstacles = [{ x: 1690, y: 1530, width: 40, height: 140 }];
+    const source = world.spawnEnemy('exploder', { x: 1780, y: 1600 })!;
+    world.damage(source, 1, 'active', false); world.debug.resolveResult();
+    for (let i = 0; i < 119; i++) {
+      updateExplosions(world, CONFIG.step);
+      expect(blocked(source, source.radius, world.state.obstacles)).toBe(false);
+    }
+    expect(source.x).toBeLessThan(1780); expect(source.y).not.toBe(1600);
+    expect(world.state.player.hp).toBe(150);
+    const close = new GameWorld('circle');
+    const touching = close.spawnEnemy('exploder', { x: 1620, y: 1600 })!;
+    close.damage(touching, 1, 'active', false); close.debug.resolveResult();
+    updateExplosions(close, 1); updateEnemies(close, 1);
+    expect(close.state.player.hp).toBe(150); expect(touching.x).toBeCloseTo(1600);
+    updateExplosions(close, 1); expect(close.state.player.hp).toBe(130);
+  });
+  it('未被击中不触发，致死命中开始两秒引信，重复命中不重置', () => {
     const world = new GameWorld('circle');
     const source = world.spawnEnemy('exploder', { x: 1700, y: 1600 })!;
     updateExplosions(world, 3); expect(world.state.explosions).toHaveLength(0);
@@ -848,8 +876,8 @@ describe('爆炸怪引信与范围伤害', () => {
   });
   it('两秒后只命中圈内怪物和英雄一次，圈外怪物无伤害', () => {
     const world = new GameWorld('circle');
-    const source = world.spawnEnemy('exploder', { x: 1700, y: 1600 })!;
-    const near = dummy(world, 150), far = dummy(world, 300);
+    const source = world.spawnEnemy('exploder', { x: 1660, y: 1600 })!; source.speed = 0;
+    const near = dummy(world, 100), far = dummy(world, 200);
     world.damage(source, 1, 'active', false);
     updateExplosions(world, 1.99);
     expect(near.hp).toBe(1000); expect(world.state.player.hp).toBe(150);
@@ -859,22 +887,28 @@ describe('爆炸怪引信与范围伤害', () => {
     expect(source.hp).toBe(0); expect(world.state.explosions).toHaveLength(0);
     updateExplosions(world, 5); expect(world.state.player.hp).toBe(130);
   });
-  it('引信跟随怪物，提前死亡后保留死亡点并正常伤害与掉落', () => {
+  it('一击死亡立即结算一次掉落，亡灵继续追踪两秒且不能重复击杀', () => {
     const world = new GameWorld('circle');
-    const source = world.spawnEnemy('exploder', { x: 1700, y: 1600 })!;
+    const source = world.spawnEnemy('exploder', { x: 1800, y: 1600 })!;
+    expect(source.hp).toBe(1);
     world.damage(source, 1, 'active', false);
-    source.x = 1900; updateExplosions(world, .5);
-    expect(world.state.explosions[0].x).toBe(1900);
-    source.x = 1950; world.damage(source, 100, 'active', false); world.debug.resolveResult();
-    expect(world.state.explosions[0].x).toBe(1950);
+    world.debug.resolveResult();
+    expect(world.state.enemies).not.toContain(source); expect(world.state.kills).toBe(1);
     expect(world.state.pickups.filter(p => p.kind === 'xp')).toHaveLength(2);
-    const target = dummy(world, 380);
-    updateExplosions(world, 1.5);
-    expect(target.hp).toBe(930); expect(world.state.player.hp).toBe(150);
+    updateExplosions(world, 1);
+    expect(world.state.explosions[0].x).toBeCloseTo(1728);
+    world.state.player.y = 1650;
+    updateExplosions(world, .99);
+    expect(world.state.explosions[0].y).toBeGreaterThan(1600);
+    expect(world.state.player.hp).toBe(150); expect(world.state.explosions).toHaveLength(1);
+    world.damage(source, 100, 'active', false); world.debug.resolveResult();
+    expect(world.state.kills).toBe(1); expect(world.state.pickups.filter(p => p.kind === 'xp')).toHaveLength(2);
+    updateExplosions(world, .01);
+    expect(world.state.explosions).toHaveLength(0); expect(world.state.player.hp).toBe(130);
   });
   it('爆炸不触发其他爆炸怪的引信，不暴击；特效满额也保留伤害', () => {
     const world = new GameWorld('triangle'); world.state.player.critChance = 1;
-    const source = world.spawnEnemy('exploder', { x: 1700, y: 1600 })!;
+    const source = world.spawnEnemy('exploder', { x: 1700, y: 1600 })!; source.speed = 0;
     const target = world.spawnEnemy('exploder', { x: 1750, y: 1600 })!; target.hp = 200;
     const effect = world.addEffect({ x: 2000, y: 1600 })!;
     world.state.effects = Array.from({ length: CONFIG.effectLimit }, () => ({ ...effect, id: world.nextId() }));
