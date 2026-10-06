@@ -1,9 +1,9 @@
 import type Phaser from 'phaser';
 import { ACTIVE, CONFIG, ENEMY_BEHAVIOR, EXPLOSION, SKILLS } from '../game/config';
-import type { Enemy, GameState, Vec } from '../game/types';
+import type { Effect, Enemy, GameState, Vec } from '../game/types';
 import type { Settings } from '../storage';
 
-export const PALETTE = { square: 0x65b8ff, circle: 0x63e2c3, triangle: 0xd0a2ff, enemy: 0xff7185, explosion: 0xffa568, xp: 0x91e8ff, gold: 0xffd36a };
+export const PALETTE = { square: 0x65b8ff, circle: 0x63e2c3, triangle: 0xd0a2ff, diamond: 0xffd36a, pentagon: 0x76d4c8, hexagon: 0xffa568, enemy: 0xff7185, explosion: 0xffa568, xp: 0x91e8ff, gold: 0xffd36a };
 type Graphics = Phaser.GameObjects.Graphics;
 export function polygon(g: Graphics, x: number, y: number, radius: number, sides: number, angle = -Math.PI / 2, fill = true): void {
   const points = Array.from({ length: sides }, (_, i) => ({ x: x + Math.cos(angle + i * Math.PI * 2 / sides) * radius, y: y + Math.sin(angle + i * Math.PI * 2 / sides) * radius }));
@@ -121,7 +121,8 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
   }
   // Friendly effects are intentionally low contrast and underneath enemies and warnings.
   for (const effect of state.effects) {
-    if (effect.owner !== 'player' || !visible(effect, effect.radius)) continue;
+    if (effect.owner !== 'player' || !visible(effect, Math.max(effect.radius, effect.length ?? 0))) continue;
+    if (drawHeroEffect(g, effect, color)) continue;
     const effectColor = effect.skillId === 'explosion' ? PALETTE.explosion : effect.skillId === 'lightning' ? PALETTE.gold : color;
     g.lineStyle(effect.kind === 'field' ? 2 : 1.5, effectColor, .5); g.fillStyle(effectColor, effect.kind === 'field' ? .04 : .075);
     g.fillCircle(effect.x, effect.y, effect.radius); g.strokeCircle(effect.x, effect.y, effect.radius);
@@ -158,7 +159,12 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
   if (p.shield > 0) { g.lineStyle(2.5, PALETTE.square, .8); g.strokeCircle(p.x, p.y, p.radius + 15); }
   g.fillStyle(p.invulnerable > .35 ? 0xf2f5fa : color, .9); g.lineStyle(2, 0xf2f5fa, 1);
   if (p.characterId === 'circle') { g.fillCircle(p.x, p.y, p.radius); g.strokeCircle(p.x, p.y, p.radius); }
-  else polygon(g, p.x, p.y, p.radius, p.characterId === 'triangle' ? 3 : 4, p.characterId === 'triangle' ? Math.atan2(p.lastDirection.y, p.lastDirection.x) : Math.PI / 4);
+  else {
+    const sides = p.characterId === 'triangle' ? 3 : p.characterId === 'pentagon' ? 5 : p.characterId === 'hexagon' ? 6 : 4;
+    const angle = p.characterId === 'triangle' ? Math.atan2(p.lastDirection.y, p.lastDirection.x) : p.characterId === 'diamond' ? 0 : p.characterId === 'square' ? Math.PI / 4 : -Math.PI / 2;
+    polygon(g, p.x, p.y, p.radius, sides, angle);
+    if (p.characterId === 'hexagon') { g.lineStyle(2, 0xf2f5fa, .9); g.strokeRect(p.x - 5, p.y - 7, 10, 6); g.lineBetween(p.x, p.y - 1, p.x, p.y + 8); }
+  }
   const direction = p.lastDirection, tipX = p.x + direction.x * 33, tipY = p.y + direction.y * 33;
   g.fillStyle(0xf2f5fa, .95); g.lineStyle(1, color, 1); polygon(g, tipX, tipY, 4, 3, Math.atan2(direction.y, direction.x));
   // Draw danger last so any build remains readable under a boss telegraph.
@@ -187,6 +193,31 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
       polygon(danger, e.x + d.x * length, e.y + d.y * length, 9, 3, Math.atan2(d.y, d.x), false);
     }
   }
+}
+function drawHeroEffect(g: Graphics, effect: Effect, color: number): boolean {
+  if (!['beam', 'sweep', 'sigil', 'web', 'decoy'].includes(effect.kind)) return false;
+  if (effect.life <= 0) return true;
+  const pending = effect.delay > 1e-8 && !effect.triggered;
+  g.lineStyle(1.5, color, pending ? .7 : .8); g.fillStyle(color, pending ? .04 : .13);
+  if (effect.kind === 'beam') {
+    const d = effect.direction!, length = effect.length ?? 0, r = effect.radius;
+    const points = [{ x: effect.x - d.y * r, y: effect.y + d.x * r }, { x: effect.x + d.x * length - d.y * r, y: effect.y + d.y * length + d.x * r }, { x: effect.x + d.x * length + d.y * r, y: effect.y + d.y * length - d.x * r }, { x: effect.x + d.y * r, y: effect.y - d.x * r }];
+    g.fillPoints(points, true); g.strokePoints(points, true);
+    if (!pending) { g.lineStyle(Math.max(2, r), color, .8); g.lineBetween(effect.x, effect.y, effect.x + d.x * length, effect.y + d.y * length); }
+  } else if (effect.kind === 'sweep') {
+    const angle = Math.atan2(effect.direction!.y, effect.direction!.x), half = (effect.angle ?? Math.PI) / 2;
+    const points = [{ x: effect.x, y: effect.y }, ...Array.from({ length: 17 }, (_, i) => ({ x: effect.x + Math.cos(angle - half + i * half / 8) * effect.radius, y: effect.y + Math.sin(angle - half + i * half / 8) * effect.radius }))];
+    g.fillPoints(points, true); g.strokePoints(points, true);
+  } else if (effect.kind === 'sigil') {
+    g.lineStyle(1, color, effect.armed ? .65 : .2); g.strokeCircle(effect.x, effect.y, effect.radius);
+    g.fillStyle(color, effect.armed ? .07 : .02); polygon(g, effect.x, effect.y, effect.radius, 5);
+    g.lineStyle(2, color, .8); polygon(g, effect.x, effect.y, 12, 5, -Math.PI / 2, false);
+    if (effect.armed) { g.beginPath(); g.arc(effect.x, effect.y, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, effect.delay / (effect.skillId === 'ultimate' ? 3 : .45))); g.strokePath(); }
+  } else if (effect.kind === 'web') {
+    g.fillStyle(color, .025); polygon(g, effect.x, effect.y, effect.radius, 5);
+    for (let i = 0; i < 5; i++) g.lineBetween(effect.x, effect.y, effect.x + Math.cos(-Math.PI / 2 + i * Math.PI * 2 / 5) * 130, effect.y + Math.sin(-Math.PI / 2 + i * Math.PI * 2 / 5) * 130);
+  } else { g.fillStyle(color, .08); g.lineStyle(1.5, color, .5); polygon(g, effect.x, effect.y, effect.radius, 4, 0); }
+  return true;
 }
 function drawElements(g: Graphics, x: number, y: number, radius: number, elements: ('fire' | 'ice' | 'lightning')[]): void {
   const colors = { fire: 0xffa568, ice: 0x91d8ff, lightning: 0xffd36a };

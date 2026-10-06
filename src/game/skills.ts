@@ -1,4 +1,5 @@
-import { ACTIVE, CHARACTERS, CONFIG, SKILLS, ULTIMATE } from './config';
+import { ACTIVE, CHARACTERS, CONFIG, HERO_MECHANICS, SKILLS, ULTIMATE } from './config';
+import { activateHeroSkill, activateHeroUltimate, fireHeroSkill, updateHeroEffect, updateHeroUltimate } from './heroes';
 import { skillDamage } from './progression';
 import { blocked, direction, distanceSq } from './spatial';
 import type { Enemy, Projectile, SkillId, SkillState, Vec, WorldAccess } from './types';
@@ -27,6 +28,7 @@ function blast(world: WorldAccess, origin: Vec, radius: number, damage: number, 
 }
 export function canAutoActivate(world: WorldAccess): boolean {
   const p = world.state.player;
+  if (p.characterId === 'hexagon') return !!nearest(world, p, HERO_MECHANICS.hexagon.activeRadius);
   if (!nearest(world, p, 300)) return false;
   if (p.characterId !== 'triangle') return true;
   for (let distance = 20; distance <= ACTIVE.triangle.distance; distance += 20) {
@@ -38,6 +40,7 @@ export function activateSkill(world: WorldAccess): boolean {
   const p = world.state.player;
   if (p.skillCooldown > 0) return false;
   p.skillCooldown = CHARACTERS[p.characterId].skillCooldown * (1 - p.cooldownReduction);
+  if (activateHeroSkill(world)) return true;
   if (p.characterId === 'square') {
     p.shield = ACTIVE.square.shield; p.shieldTime = ACTIVE.square.duration;
     for (const enemy of [...world.nearby(p, ACTIVE.square.radius + 60)]) if (distanceSq(p, enemy) <= (ACTIVE.square.radius + enemy.radius) ** 2) push(world, enemy, p, ACTIVE.square.knockback);
@@ -54,6 +57,7 @@ export function activateUltimate(world: WorldAccess): boolean {
   const p = world.state.player;
   if (p.energy < 100 || p.ultimateDuration > 0) return false;
   p.energy = 0; p.ultimateDuration = CHARACTERS[p.characterId].ultimateDuration; p.ultimateTick = 0;
+  if (activateHeroUltimate(world)) return true;
   if (p.characterId === 'triangle') radialBlades(world);
   else world.addEffect({ x: p.x, y: p.y, kind: 'field', skillId: 'ultimate', radius: p.characterId === 'square' ? ULTIMATE.square.radius : ULTIMATE.circle.radius, life: p.ultimateDuration });
   return true;
@@ -68,7 +72,10 @@ function radialBlades(world: WorldAccess): void {
 export function updateUltimate(world: WorldAccess, dt: number): void {
   const p = world.state.player;
   if (p.ultimateDuration <= 0) return;
+  const previous = p.ultimateDuration;
   p.ultimateDuration = Math.max(0, p.ultimateDuration - dt);
+  updateHeroUltimate(world, previous);
+  if (['diamond', 'pentagon', 'hexagon'].includes(p.characterId)) return;
   p.ultimateTick += dt;
   if (p.characterId === 'square' && p.ultimateTick + 1e-8 >= 1) {
     p.ultimateTick -= 1;
@@ -93,7 +100,8 @@ export function updateSkills(world: WorldAccess, dt: number): void {
     if (skill.cooldown > 0) continue;
     if (fireSkill(world, skill)) {
       const cooldownGain = ['homing', 'shockwave', 'meteor'].includes(skill.id) ? 1 - (skill.level - 1) * .04 : 1;
-      skill.cooldown = SKILLS[skill.id].cooldown * cooldownGain * (1 - p.cooldownReduction);
+      const overdrive = skill.id === 'base-hexagon' && p.ultimateDuration > 0 ? HERO_MECHANICS.hexagon.overdriveCooldown : 1;
+      skill.cooldown = SKILLS[skill.id].cooldown * cooldownGain * overdrive * (1 - p.cooldownReduction);
     }
   }
 }
@@ -126,6 +134,8 @@ function projectile(world: WorldAccess, skill: SkillState, angle: number, extra:
   world.addProjectile({ x: p.x, y: p.y, skillId: skill.id, damage: skillDamage(world.state, skill.id), vx: Math.cos(angle) * CONFIG.projectileSpeed, vy: Math.sin(angle) * CONFIG.projectileSpeed, radius: config.radius, range: config.range, life: config.range / CONFIG.projectileSpeed + 1, ...extra });
 }
 function fireSkill(world: WorldAccess, skill: SkillState): boolean {
+  const heroResult = fireHeroSkill(world, skill);
+  if (heroResult !== undefined) return heroResult;
   const p = world.state.player, config = SKILLS[skill.id], damage = skillDamage(world.state, skill.id);
   const target = nearest(world, p, config.range || config.radius);
   if (skill.id === 'base-square') {
@@ -224,6 +234,7 @@ export function updateEffects(world: WorldAccess, dt: number): void {
   const p = world.state.player;
   for (const effect of world.state.effects) {
     effect.life -= dt; effect.delay -= dt;
+    if (updateHeroEffect(world, effect)) continue;
     if (effect.kind === 'field' || effect.kind === 'dash') { effect.x = p.x; effect.y = p.y; }
     if (effect.kind === 'dash') {
       for (const enemy of [...world.nearby(effect, effect.radius + 60)]) {

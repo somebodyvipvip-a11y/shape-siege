@@ -1,5 +1,5 @@
-export type CharacterId = 'square' | 'circle' | 'triangle';
-export type SkillId = 'base-square' | 'base-circle' | 'base-triangle' | 'homing' | 'lightning' | 'boomerang' | 'mine' | 'shockwave' | 'meteor';
+export type CharacterId = 'square' | 'circle' | 'triangle' | 'diamond' | 'pentagon' | 'hexagon';
+export type SkillId = 'base-square' | 'base-circle' | 'base-triangle' | 'base-diamond' | 'refraction' | 'base-pentagon' | 'sigil' | 'base-hexagon' | 'fissure' | 'homing' | 'lightning' | 'boomerang' | 'mine' | 'shockwave' | 'meteor';
 export type Element = 'fire' | 'ice' | 'lightning';
 export type EnemyKind = 'chaser' | 'runner' | 'tank' | 'charger' | 'ranged' | 'exploder' | 'elite-tank' | 'elite-charger' | 'boss';
 export interface Vec { x: number; y: number }
@@ -30,9 +30,10 @@ export interface Projectile extends Vec {
 }
 export interface Pickup extends Vec { id: number; kind: 'xp' | 'heal' | 'maxhp'; value: number; attracted: boolean }
 export interface Effect extends Vec {
-  id: number; attackId: number; kind: 'warning' | 'blast' | 'mine' | 'field' | 'dash';
+  id: number; attackId: number; kind: 'warning' | 'blast' | 'mine' | 'field' | 'dash' | 'beam' | 'sweep' | 'sigil' | 'web' | 'decoy';
   owner: 'player' | 'enemy'; skillId: SkillId | 'active' | 'ultimate' | 'explosion' | 'enemy';
   radius: number; damage: number; delay: number; life: number; triggered: boolean; hit: Set<number>;
+  direction?: Vec; length?: number; angle?: number; slow?: number; knockback?: number; armed?: boolean;
 }
 export interface UpgradeChoice {
   id: string; name: string; description: string; kind: 'new' | 'level' | 'element' | 'behavior' | 'fusion' | 'stat';

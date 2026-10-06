@@ -1,82 +1,38 @@
 # Shape Siege · 当前交接文档
 
-更新日期：2026-10-06。当前产品版本以根目录 `VERSION` 为唯一来源，本地及已验证线上版本为 0.12.1。旧交接内容保留在 Git 历史中。
+更新日期：2026-10-07。唯一版本来源 VERSION，本地 0.13.0；已验证线上 0.12.1，发布基线 66bb070。本轮加入三个已批准角色，并修复手机暂停/属性/关卡/技能栏排版。
 
-## 当前状态与用户要求
+## 交付规则
 
-原创几何风格单人网页生存游戏，支持桌面和手机。每关 5 分钟，4:00 出现首领，击败后选礼包并进入下一关，保留构筑与同局地形。
+遵循 AGENTS.md：检查 diff、必要验证、SemVer、CHANGELOG 与本交接、Conventional Commit。用户长期授权大更新验证后自动更新 Pages；本轮两个改动完成后一起发布，明确要求暂不发布时遵循最新指令。
 
-用户已长期授权每次大更新完成验证后自动推送和更新 Pages，无需再次询问；明确要求先本地测试或暂不发布时以当次指令为准。规则写入 AGENTS.md。本轮已将 0.11.0 亡灵爆炸规则与 0.12.0 首次版本公告一起发布为 0.12.1，部署和线上版本均核验成功。后续完成修改必须同步 CHANGELOG 与本文件，不把脚本通关率称为真人胜率，不把浏览器尺寸验证称为手机真机验收。
+## 实现与关键文件
 
-## 近期已完成修改
+原有三英雄保持功能与解锁条件，新增菱形、五边形、六边形初始可选。
 
-| 版本 / 提交 | 修改 | 关键文件 |
-| --- | --- | --- |
-| 0.8.0 / d298988 | 起手群攻、前三次输出选牌保底、增强伤害、降低怪潮与首领压力 | config、progression、director、combat |
-| 0.8.1 / 20cd8d4 | 浮动摇杆，左半战场起手落点为圆心，松手/暂停/失焦/旋转清理输入 | input、hud、styles |
-| 0.8.2 / a7e85e0 | 经验独立颗粒：追踪/快跑 1，冲刺/远程 2，重甲 3，精英 10；保持总收益 | config、combat |
-| 0.9.0 / c1dce82 | 爆炸怪被英雄首击后两秒引爆，提前死亡仍爆；英雄与怪物都受伤 | types、combat、world、director、geometry |
-| 0.10.0 / 7ad36a6 | 开场随机凸多边形岛屿，绘制/碰撞/导航一致，同局跨关保留 | spatial、navigation、world、geometry |
-| 0.10.1 / b983fa7 | 爆炸怪与范围圈在引信期间局部闪烁；减少动态效果关闭闪烁 | geometry、browser-rules 测试 |
-| 0.11.0 / 66873b3 | 爆炸怪低权重、1 点生命、半径 70，死亡后亡灵追踪两秒爆炸 | config、director、combat、types、world、geometry、core 测试 |
-| 0.12.0 / 40c6041 | 首页版本公告，每版首次提醒、已读持久化、主动回看 | storage、app、release-notes、menu、dialog-input、styles、browser-rules 测试 |
-| 0.12.1 / 57bc666 | 固定大更新自动发布规则并上线累计改动 | AGENTS、VERSION、CHANGELOG、handoff |
+- 菱形：100 生命/225 移速/15% 暴击。射线优先精英/首领，命中折射；镜面跃迁不穿墙，两秒普通怪镜像；大招 0.6 秒预警后宽射线。地形截断与渲染长度一致。
+- 五边形：140 生命/200 移速/8% 冷却缩减/幸运 1。追踪符点、最多六阵，触发 0.45 秒后爆炸减速；可提前引爆，无阵布置一阵；大招固定减速区，三秒后五阵爆炸。
+- 六边形：210 生命/165 移速/护甲 2/伤害加成 8%。扇形横扫、击退裂纹；蓄力 0.4 秒期间减伤 25%，随后重击；五秒过载提高横扫频率和范围，结束震地。实心六边形/锤标记区别于首领。
+- 新逻辑集中 src/game/heroes.ts，skills/director/combat 通过入口接入；types/config 定义统一属性，storage 迁移初始角色，menu/shared/geometry 补齐六角色与图形，保留原设置与成绩。
+- 原有随机地形、浮动摇杆、经验颗粒、亡灵爆炸怪、连续闯关和首次公告保留。旧版变化见 CHANGELOG；设计见 docs/superpowers/specs/2026-10-07-six-heroes-mobile-design.md。
 
-文件均位于 `src/game/`、`src/ui/`、`src/render/` 或 `tests/`，具体路径见下节。版本对应的完整变化以 `CHANGELOG.md` 为准。
+## 验证
 
-## 实现要点
+- npm test：121 项通过。tests/heroes.test.ts 覆盖迁移、射线/折射/地形、闪现镜像、延迟、法阵容量/单次伤害/减速/引爆、固定阵地、扇形/减伤/过载、暂停与清场。
+- npm run build：类型检查与构建通过，既有 Phaser 大文件提示保留。
+- 三新角色，各种子 20261006/73/991、随机选牌/真实生命/自动普通技能：9/9 脚本通关，251–276 秒，不代表真人胜率。输出在忽略的 .superpowers/balance-results.json。scripts/balance.replay.ts 支持 BALANCE_CHARACTERS 指定角色，默认覆盖六个。
+- 线上与本地浏览器自动审批均超时，暂未取得本轮实际画面，不能声称视觉和手机布局已验收。
 
-- `src/ui/release-notes.ts` 直接读取 CHANGELOG 前两个版本条目，转义文本；`src/app.ts` 在首次显示首页时调用 `SaveStore.consumeReleaseNotice`，用现有对话框、inert 与焦点约束展示公告。`src/storage.ts` 增加 `seenReleaseVersion`，旧 schema 1 存档通过缺失字段补齐迁移；显示即记录，存储失败时当前实例仍不重复提醒并显示保存失败提示。首页按钮可回看，关闭按钮或 Esc 关闭。
+## 尚需完成
 
-- `src/game/config.ts` 集中数值：普通怪上限 140，经验倍率 1.25，基础伤害每级成长 16%，伤害强化卡 6%；首领基础生命 3000，每 25 秒召唤 4 只，活跃召唤上限 10。
-- 英雄起手群攻占正常技能槽：正方形连锁闪电、圆形震荡波、三角形回旋刃。`src/game/progression.ts` 前三次完成选牌保底至少一个输出选项，重抽不计完成次数。
-- `src/input.ts` 保持独立指针捕获；左侧起手区域与右侧技能按钮分离。手机操作说明在 `src/ui/overlays.ts`，布局在 `src/ui/hud.ts`、`src/ui/styles.css`。
-- `src/game/combat.ts` 经验不再常规合并，多颗散落并检查障碍；只有达到 300 个掉落上限才压缩溢出经验，若没有经验槽则直接计入，避免损失总收益。
-- 爆炸怪从 1:00 阶段开始生成，权重 0.2（其他怪为 1），重甲阶段占比 6.25%，混战约 3.85%。橙色八边形，生命固定 1，基础速度 72，存活时接触伤害 8。被英雄击杀立即结算一次奖励，亡灵脱离敌人列表，由独立 `state.explosions` 队列保留实体引用，按原速度和统一导航/碰撞继续追踪两秒；不可被攻击、无接触伤害，不重复奖励。
-- 亡灵在引信结束的最终位置爆炸，半径 70、怪物伤害 70、英雄伤害 20，伤害随关卡倍率增长。爆炸不暴击、不触发元素或新的引信。队列不受装饰特效预算影响，暂停/选牌冻结，首领入场与通关清理队列。
-- `src/render/geometry.ts` 使用橙色虚线、圆弧、秒数及 1.5Hz 局部亮度脉动。减少动态效果时保持静态，危险轮廓始终可见。
-- `src/game/spatial.ts` 使用独立种子流生成 12–16 块凸 3–6 边形，随机位置、大小、旋转和伸缩；保留中心半径 360、边缘 160、岛屿间至少 240 单位通路。实际顶点用于碰撞与绘制，包围盒用于剔除与保守导航节点。
+1. 手机布局：修复块布局、绝对定位、56px 按钮与小徽章的混用，验证竖屏、横屏、六槽与安全区。
+2. 完成后推送并检查对应 Pages workflow 与实际线上版本，更新发布记录。
+3. 真机 iOS Safari/Android Chrome、真人平衡、手机后期帧耗时仍待验证。
 
-## 验证证据
+## 启动与发布
 
-- 本轮 `npm test` 为 **114 项通过**，`npm run build` 包含类型检查并通过；既有 Phaser 大文件构建提示保留。新增公告同版本不重复、新版本提醒、刷新后已读、保存失败、进度保留、CHANGELOG 提取/文本转义与 Esc 关闭测试；原玩法验证继续通过。
-- 0.12.0 生产预览 `http://127.0.0.1:4173/`：首次加载出现公告，关闭并刷新后公告数量为 0；首页入口可主动回看，Esc 正常关闭并回到入口焦点。Chrome 360×800 验证弹窗滚动、无横向溢出，控制台无警告/错误；截图 `.superpowers/screenshots/release-notice-mobile.png`。预览端口以运行时输出为准，未代替真机测试。
-- Chrome 本地隔离场景：1 点伤害后生命归零、击杀计为 1、掉 2 颗经验；一秒后从 x=1680 移至 x=1608，英雄仍为 150 生命；两秒后引信移除、英雄降至 130，经验仍为 2 颗，控制台无警告/错误。截图 `.superpowers/screenshots/exploder-ghost-local.png`。诊断页面不进入生产构建。
-- 经验掉落后九局随机选牌回放为 9/9 通关；加入爆炸怪后为 8/9（一次三角形死亡）；随机地图后为 8/9（一次圆形死亡），均达到每个角色至少 2/3 的脚本回归门槛。
-- 本轮亡灵规则下，三个角色各跑种子 20261006、73、991，随机选牌九局为 **9/9 通关**，首关通关时间 253–272 秒。使用真实正常生命、自动普通技能及脚本走位，不代表真人胜率。结果位于忽略的 `.superpowers/balance-results.json`。
-- 地形检查覆盖 50 个种子、出生区/间距、随机流独立、空角通行、防穿透、四种体型绕行和跨关保持地图。
-- Chrome 360×800 手机尺寸验证游戏入口、起手技能和浮动移动区域。隔离规则场景确认爆炸后英雄生命 150→130，爆炸怪掉 2 颗经验，击败重甲后共 5 颗；浏览器未记录警告或错误。
-- 完整说明：`docs/local-gameplay-qa.md`、`docs/balance-validation.md`。诊断脚本、截图及临时页面在忽略的 `.superpowers/`，不进入产品构建。
+Node.js 24/npm 11，PowerShell：npm ci；npm run dev；npm test；npm run build。VERSION 改动后重启 dev；可用 npm exec vite preview -- --host 127.0.0.1 --port 4173 预览生产包，端口以输出为准。
 
-## Git 与发布
+Git main，仓库 https://github.com/somebodyvipvip-a11y/shape-siege，Pages https://somebodyvipvip-a11y.github.io/shape-siege/。推送触发 pages.yml 安装、测试、构建、部署，PAGES_ENABLED=true。最后已验证 0.12.1 工作流 37490988991，本轮尚未推送。
 
-分支为 `main`，仓库 `https://github.com/somebodyvipvip-a11y/shape-siege`，已按此前授权公开；已有 Pages Actions 工作流 `.github/workflows/pages.yml`，推送 main 会触发发布。
-
-已推送发布提交 `57bc666`，对应 Actions 运行 `37490443651` 构建与部署成功：<https://github.com/somebodyvipvip-a11y/shape-siege/actions/runs/37490443651>。包含 0.11.0 与 0.12.0 的全部累计改动。当前发布状态补记为文档提交，不另升产品版本；后续大更新自动推送和发布。
-
-已验证游玩地址：<https://somebodyvipvip-a11y.github.io/shape-siege/>。Chrome 线上页面实际显示 `v0.12.1` 并首次展示更新公告；关闭后刷新，公告数量为 0，首页可主动回看，控制台无警告或错误。上线截图 `.superpowers/screenshots/pages-v0.12.1.png`。发布时仍需确认对应工作流与实际页面，不能将“已推送”当作“已上线”。
-
-## 启动与复跑
-
-Windows PowerShell，Node.js 24 / npm 11，依赖已锁定：
-
-```powershell
-npm ci
-npm run dev
-npm test
-npm run build
-npm exec vitest run -- --config scripts/balance.config.ts
-```
-
-平衡脚本默认九局输出优先选牌；`BALANCE_POLICY=casual` 切换随机选牌，`BALANCE_STAGES=3` 切换每角色种子 73 连续三关。运行后清除所设环境变量，避免污染后续测试。默认输出在 `.superpowers/balance-results.json`。
-
-手机局域网试玩参考 `README.md`，IP 与端口以当前开发服务器输出为准，不能依赖过去的地址。
-
-## 未完成事项与接手顺序
-
-1. 真机验收 iOS Safari / Android Chrome：浮动摇杆与双指施法、方向切换、旋转、后台恢复、爆炸预警可读性。
-2. 真人评估随机地图与爆炸风险下的五分钟通关，尤其低生命三角形；自动回放不能替代真人体验。
-3. 测量手机后期怪潮、多颗经验和导航图的帧耗时，当前没有真实设备性能达标结论。
-4. 后续每次大更新完成验证后自动发布，核验工作流与实际线上版本并补记发布状态，保持历史，不强推或改写提交；本轮发布结果见下方 Git 与发布记录。
-
-开始后续工作先读取 `AGENTS.md`、本文件、`README.md`、`VERSION` 和 Git 状态；完成后同步更新更新记录与交接，不扩大到无关重构。
+回放：设置 BALANCE_POLICY=casual 和可选 BALANCE_CHARACTERS=diamond,pentagon,hexagon，运行 npm exec vitest run -- --config scripts/balance.config.ts，结束清除环境变量。无账号/联机/局中保存，localStorage 为浏览器独立存档。

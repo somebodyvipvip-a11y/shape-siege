@@ -155,7 +155,7 @@ describe('local save recovery and unlocks', () => {
   it('validates unknown schema and malformed fields, preserving valid fields only', () => {
     expect(validateSave({ schemaVersion: 2 })).toEqual(defaultSave());
     const save = validateSave({ schemaVersion: 1, settings: { autoSkill: 'yes', music: Infinity, sound: -1, quality: 'ultra' }, unlocked: ['triangle', 'unknown', 'triangle'], best: { kills: -3, time: 900 }, stats: null });
-    expect(save.settings).toEqual(defaultSave().settings); expect(save.unlocked).toEqual(['circle', 'triangle']);
+    expect(save.settings).toEqual(defaultSave().settings); expect(save.unlocked).toEqual(['circle', 'triangle', 'diamond', 'pentagon', 'hexagon']);
     expect(save.best.kills).toBe(0); expect(save.best.time).toBe(300); expect(save.stats.runs).toBe(0);
     expect(save.best.bestStage).toBe(1); expect(save.stats.bestStage).toBe(1);
   });
@@ -191,7 +191,7 @@ describe('local save recovery and unlocks', () => {
     expect(store.data.best.kills).toBe(3); expect(store.data.stats.runs).toBe(2);
   });
   it('does not record abandoned or ongoing runs as completed', () => {
-    const store = new SaveStore(null), world = new GameWorld(); expect(store.finish(world.state)).toEqual([]); expect(store.data.stats.runs).toBe(0); expect(store.data.unlocked).toEqual(['circle']);
+    const store = new SaveStore(null), world = new GameWorld(); expect(store.finish(world.state)).toEqual([]); expect(store.data.stats.runs).toBe(0); expect(store.data.unlocked).toEqual(defaultSave().unlocked);
   });
 });
 

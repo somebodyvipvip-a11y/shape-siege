@@ -3,17 +3,23 @@ import type { CharacterId, Player, SkillId } from '../game/types';
 
 const icons: Record<string, IconNode> = { arrow: ArrowRight, settings: Settings2, keyboard: Keyboard, play: Play, pause: Pause, reroll: RotateCcw, home: Home, close: X, lock: LockKeyhole, check: Check, trophy: Trophy, shield: Shield, heart: Heart, target: Crosshair, volume: Volume2, chevron: ChevronRight, sparkles: Sparkles, help: CircleHelp, warning: AlertTriangle };
 export function icon(name: string): string { return createElement(icons[name] ?? CircleHelp, { width: 20, height: 20, 'aria-hidden': 'true', 'stroke-width': 1.8 }).outerHTML; }
-export const COLORS: Record<CharacterId, string> = { circle: '#63E2C3', square: '#65B8FF', triangle: '#D0A2FF' };
-export const ROLE_TEXT: Record<CharacterId, { title: string; subtitle: string; attack: string; active: string; ultimate: string; condition: string }> = {
-  circle: { title: '星环', subtitle: '轨道控制 / 均衡', attack: '星球环绕近敌，震荡波范围清场。', active: '轨道扩张', ultimate: '引力爆炸', condition: '初始解锁' },
-  square: { title: '堡垒', subtitle: '坚固护盾 / 防守', attack: '四向冲击与连锁闪电，护盾稳住阵线。', active: '护盾震退', ultimate: '守护领域', condition: '完成任意一局后解锁' },
-  triangle: { title: '锋刃', subtitle: '高速穿透 / 突进', attack: '穿透飞刃与回旋刃，冲刺破阵。', active: '锋刃冲刺', ultimate: '径向刃雨', condition: '首次击杀阶段精英后解锁' },
+export const COLORS: Record<CharacterId, string> = { circle: '#63E2C3', square: '#65B8FF', triangle: '#D0A2FF', diamond: '#FFD36A', pentagon: '#76D4C8', hexagon: '#FFA568' };
+export const ROLE_TEXT: Record<CharacterId, { title: string; shape: string; subtitle: string; attack: string; active: string; ultimate: string; condition: string }> = {
+  circle: { title: '星环', shape: '圆形', subtitle: '轨道控制 / 均衡', attack: '星球环绕近敌，震荡波范围清场。', active: '轨道扩张', ultimate: '引力爆炸', condition: '初始解锁' },
+  square: { title: '堡垒', shape: '正方形', subtitle: '坚固护盾 / 防守', attack: '四向冲击与连锁闪电，护盾稳住阵线。', active: '护盾震退', ultimate: '守护领域', condition: '完成任意一局后解锁' },
+  triangle: { title: '锋刃', shape: '三角形', subtitle: '高速穿透 / 突进', attack: '穿透飞刃与回旋刃，冲刺破阵。', active: '锋刃冲刺', ultimate: '径向刃雨', condition: '首次击杀阶段精英后解锁' },
+  diamond: { title: '棱镜', shape: '菱形', subtitle: '远程射线 / 狙击', attack: '聚焦射线优先精英，命中后折射碎光。', active: '镜面跃迁', ultimate: '棱镜贯穿', condition: '初始解锁' },
+  pentagon: { title: '织阵', shape: '五边形', subtitle: '陷阱布阵 / 控制', attack: '追踪符点与延时法阵，引怪入阵再引爆。', active: '阵地引爆', ultimate: '五芒封锁', condition: '初始解锁' },
+  hexagon: { title: '重锤', shape: '六边形', subtitle: '近战重击 / 爆发', attack: '扇形横扫与震地裂纹，蓄力重击破阵。', active: '蓄力猛击', ultimate: '核心过载', condition: '初始解锁' },
 };
 export function geometry(id: CharacterId | SkillId | string, className = ''): string {
   let path = '';
   if (id === 'circle' || id === 'base-circle') path = '<circle cx="32" cy="32" r="15" fill="currentColor" fill-opacity=".13"/><circle cx="32" cy="32" r="15"/><ellipse cx="32" cy="32" rx="28" ry="22" transform="rotate(-28 32 32)" opacity=".45"/><circle cx="54" cy="17" r="4" fill="currentColor"/>';
   else if (id === 'square' || id === 'base-square') path = '<rect x="15" y="15" width="34" height="34" rx="3" fill="currentColor" fill-opacity=".13"/><rect x="21" y="21" width="22" height="22" opacity=".5"/><path d="M32 5v5m0 44v5M5 32h5m44 0h5"/>';
   else if (id === 'triangle' || id === 'base-triangle') path = '<path d="M32 10 54 50H10Z" fill="currentColor" fill-opacity=".13"/><path d="m32 21 12 23H20Z" opacity=".5"/><path d="m8 17 5-5m38 0 5 5"/>';
+  else if (id === 'diamond' || id === 'base-diamond' || id === 'refraction') path = '<path d="M32 6 51 32 32 58 13 32Z" fill="currentColor" fill-opacity=".13"/><path d="M32 6v52M13 32h38m-18-7 21-9m-21 23 21 9" opacity=".6"/>';
+  else if (id === 'pentagon' || id === 'base-pentagon' || id === 'sigil') path = '<path d="m32 7 25 18-10 29H17L7 25Z" fill="currentColor" fill-opacity=".13"/><path d="m32 7 15 47L7 25h50L17 54Z" opacity=".5"/>';
+  else if (id === 'hexagon' || id === 'base-hexagon' || id === 'fissure') path = '<path d="m32 6 23 13v26L32 58 9 45V19Z" fill="currentColor" fill-opacity=".25"/><path d="M24 18h16v12H24Zm8 12v18" stroke-width="4"/>';
   else if (id === 'lightning' || id.includes('lightning')) path = '<path d="m36 6-20 29h15l-4 23 22-31H34Z" fill="currentColor" fill-opacity=".15"/>';
   else if (id === 'boomerang') path = '<path d="m11 36 21-25 21 25-21-13Z"/><path d="M15 47q17 14 34-2" opacity=".5"/>';
   else if (id === 'mine') path = '<path d="m32 7 22 13v24L32 57 10 44V20Z"/><circle cx="32" cy="32" r="11"/><path d="M32 26v12m-6-6h12"/>';

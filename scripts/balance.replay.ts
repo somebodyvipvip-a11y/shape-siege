@@ -2,7 +2,7 @@
 import { it, expect } from 'vitest';
 import { writeFileSync } from 'node:fs';
 import { GameWorld } from '../src/game/world';
-import { CONFIG, ENEMIES } from '../src/game/config';
+import { CHARACTER_IDS, CONFIG, ENEMIES } from '../src/game/config';
 import { blocked, distanceSq } from '../src/game/spatial';
 import { clearPath } from '../src/game/navigation';
 import { SeededRandom } from '../src/game/random';
@@ -25,7 +25,8 @@ function upgradeScore(c: UpgradeChoice): number {
 it('records deterministic normal-health first-stage play, including real timeout failures', () => {
   const results: any[] = [];
   if (process.env.BALANCE_BOSS_HP) ENEMIES.boss.hp = Number(process.env.BALANCE_BOSS_HP);
-  for (const character of ['circle', 'square', 'triangle'] as CharacterId[]) {
+  const characters = process.env.BALANCE_CHARACTERS ? process.env.BALANCE_CHARACTERS.split(',') as CharacterId[] : CHARACTER_IDS;
+  for (const character of characters) {
     for (const seed of (process.env.BALANCE_STAGES === '3' ? [73] : [20261006, 73, 991])) {
       const world = new GameWorld(character, seed);
       world.setAutoSkill(true);
@@ -64,14 +65,14 @@ it('records deterministic normal-health first-stage play, including real timeout
               const dist = Math.sqrt(distanceSq(point, e)) - e.radius - p.radius;
               nearest = Math.min(nearest, dist);
               if (dist < 35) score -= (35 - dist) * 35;
-              else if (dist < (character === 'circle' ? 50 : 80)) score -= ((character === 'circle' ? 50 : 80) - dist) * 2;
+              else if (dist < (character === 'circle' || character === 'hexagon' ? 50 : 80)) score -= ((character === 'circle' || character === 'hexagon' ? 50 : 80) - dist) * 2;
               if (e.state === 'warning' && e.kind.includes('charger') && dist < 160) score -= 100;
             }
             if (pickups[0]) score -= Math.sqrt(distanceSq(point, pickups[0])) * .35;
-            else if (Number.isFinite(nearest)) score -= Math.abs(nearest - (character === 'circle' ? 55 : 100)) * .3;
+            else if (Number.isFinite(nearest)) score -= Math.abs(nearest - (character === 'circle' ? 55 : character === 'hexagon' ? 95 : character === 'diamond' ? 320 : 100)) * .3;
             else score -= Math.hypot(point.x - 1600, point.y - 1600) * .1;
             if (boss) {
-              score -= Math.abs(Math.sqrt(distanceSq(point, boss)) - (character === 'circle' ? 140 : 250)) * .65;
+              score -= Math.abs(Math.sqrt(distanceSq(point, boss)) - (character === 'circle' ? 140 : character === 'hexagon' ? 110 : character === 'diamond' ? 400 : 250)) * .65;
               if (character === 'square') score -= Math.min(Math.abs(point.x - boss.x), Math.abs(point.y - boss.y)) * .1;
             }
             for (const effect of s.effects) if (effect.owner === 'enemy' && distanceSq(effect, point) < (effect.radius + 45) ** 2) score -= 600;
@@ -97,5 +98,5 @@ it('records deterministic normal-health first-stage play, including real timeout
   console.log(results.map(r => ({ character: r.character, seed: r.seed, outcome: r.outcome, time: r.time, level: r.level, kills: r.kills, maxEnemies: r.maxEnemies, maxVisible: r.maxVisible, bossRemaining: r.bossRemaining })));
   // Diagnostic target: this policy should clear at least two seeds per character.
   // A failure measures this scripted policy, never proves human play impossible.
-  for (const character of ['circle', 'square', 'triangle']) expect(results.filter(r => r.character === character && r.outcome === 'clear').length, `${character} first-stage clears / 3`).toBeGreaterThanOrEqual(process.env.BALANCE_STAGES === '3' ? 1 : 2);
+  for (const character of characters) expect(results.filter(r => r.character === character && r.outcome === 'clear').length, `${character} first-stage clears / 3`).toBeGreaterThanOrEqual(process.env.BALANCE_STAGES === '3' ? 1 : 2);
 });

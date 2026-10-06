@@ -1,5 +1,6 @@
 import { CONFIG, DIRECTOR, ENEMY_BEHAVIOR as AI, stageAt, stageEnemyAt } from './config';
 import { navigationDirection, prepareNavigation } from './navigation';
+import { decoyTarget } from './heroes';
 import { stageScale } from './scaling';
 import { blocked, direction, distanceSq } from './spatial';
 import type { Enemy, Vec, WorldAccess } from './types';
@@ -84,7 +85,8 @@ function steering(world: WorldAccess, enemy: Enemy, target: Vec, speed: number, 
   world.move(enemy, (d.x * speed + separationX) * dt, (d.y * speed + separationY) * dt);
 }
 function warning(world: WorldAccess, enemy: Enemy, seconds: number): void {
-  enemy.state = 'warning'; enemy.timer = seconds; enemy.target = { x: world.state.player.x, y: world.state.player.y };
+  const target = decoyTarget(world, enemy);
+  enemy.state = 'warning'; enemy.timer = seconds; enemy.target = { x: target.x, y: target.y };
   enemy.attackDirection = direction(enemy, enemy.target);
   enemy.attackId = world.nextId(); enemy.hitPlayer = false;
 }
@@ -99,6 +101,7 @@ export function updateEnemies(world: WorldAccess, dt: number): void {
     if (enemy.hp <= 0) continue;
     enemy.timer -= dt;
     const speed = enemy.speed * (1 - enemy.slowFactor);
+    const target = decoyTarget(world, enemy);
     if (enemy.kind === 'boss') updateBoss(world, enemy, dt);
     else if (enemy.kind === 'charger' || enemy.kind === 'elite-charger') {
       if (enemy.state === 'warning' && enemy.timer <= 0) { enemy.state = 'attack'; enemy.timer = AI.chargeDuration; }
@@ -107,8 +110,8 @@ export function updateEnemies(world: WorldAccess, dt: number): void {
         world.move(enemy, d.x * AI.chargeSpeed * dt, d.y * AI.chargeSpeed * dt);
         if (enemy.timer <= 0) { enemy.state = 'rest'; enemy.timer = AI.chargeRest; }
       } else if (enemy.state !== 'warning') {
-        if (enemy.timer <= 0 && distanceSq(enemy, p) < AI.chargeRange ** 2 && aimers < AI.aimCap) { warning(world, enemy, DIRECTOR.chargeWarning); aimers++; }
-        else steering(world, enemy, p, speed, dt);
+        if (enemy.timer <= 0 && distanceSq(enemy, target) < AI.chargeRange ** 2 && aimers < AI.aimCap) { warning(world, enemy, DIRECTOR.chargeWarning); aimers++; }
+        else steering(world, enemy, target, speed, dt);
       }
     } else if (enemy.kind === 'ranged') {
       if (enemy.state === 'warning' && enemy.timer <= 0) {
@@ -116,10 +119,10 @@ export function updateEnemies(world: WorldAccess, dt: number): void {
         world.addProjectile({ x: enemy.x, y: enemy.y, owner: 'enemy', skillId: 'enemy', damage: enemy.damage, vx: d.x * AI.rangedShotSpeed, vy: d.y * AI.rangedShotSpeed, life: 5, radius: 7 });
         enemy.state = 'rest'; enemy.timer = AI.rangedRest;
       } else if (enemy.state !== 'warning') {
-        if (distanceSq(enemy, p) > AI.rangedRange ** 2) steering(world, enemy, p, speed, dt);
+        if (distanceSq(enemy, target) > AI.rangedRange ** 2) steering(world, enemy, target, speed, dt);
         else if (enemy.timer <= 0 && aimers < AI.aimCap) { warning(world, enemy, AI.rangedWarning); aimers++; }
       }
-    } else steering(world, enemy, p, speed, dt);
+    } else steering(world, enemy, target, speed, dt);
     if (distanceSq(enemy, p) <= (enemy.radius + p.radius) ** 2) {
       if (enemy.state === 'attack' && (enemy.kind.includes('charger') || (enemy.kind === 'boss' && enemy.bossPattern === 1))) {
         if (!enemy.hitPlayer && p.dashTime <= 0) { world.damagePlayer(enemy.damage); enemy.hitPlayer = true; }

@@ -45,11 +45,22 @@ export const CHARACTERS: Record<CharacterId, { name: string; hp: number; speed: 
   circle: { name: '圆形·星环', hp: 150, speed: 210, base: 'base-circle', startingAoe: 'shockwave', skillCooldown: 9, ultimateDuration: 3, attributes: { luck: 1, pickupRadius: 20 } },
   // 锋刃：血最薄、移速最快，用暴击与闪避走「高风险高回报」的爆发定位。
   triangle: { name: '三角形·锋刃', hp: 115, speed: 245, base: 'base-triangle', startingAoe: 'boomerang', skillCooldown: 8, ultimateDuration: 2, attributes: { critChance: .1, critMultiplier: .25, dodge: .08 } },
+  diamond: { name: '菱形·棱镜', hp: 100, speed: 225, base: 'base-diamond', startingAoe: 'refraction', skillCooldown: 11, ultimateDuration: .6, attributes: { critChance: .15 } },
+  pentagon: { name: '五边形·织阵', hp: 140, speed: 200, base: 'base-pentagon', startingAoe: 'sigil', skillCooldown: 8, ultimateDuration: 3, attributes: { cooldownReduction: .08, luck: 1 } },
+  hexagon: { name: '六边形·重锤', hp: 210, speed: 165, base: 'base-hexagon', startingAoe: 'fissure', skillCooldown: 9, ultimateDuration: 5, attributes: { armor: 2, damageBonus: .08 } },
 };
+export const CHARACTER_IDS: readonly CharacterId[] = ['circle', 'square', 'triangle', 'diamond', 'pentagon', 'hexagon'];
+export const STARTING_CHARACTERS: readonly CharacterId[] = ['circle', 'diamond', 'pentagon', 'hexagon'];
 export const SKILLS: Record<SkillId, { name: string; damage: number; cooldown: number; range: number; radius: number; behavior: string }> = {
   'base-square': { name: '四向冲击', damage: 24, cooldown: .9, range: 600, radius: 7, behavior: '增加斜向冲击弹' },
   'base-circle': { name: '星环轨道', damage: 20, cooldown: .5, range: 80, radius: 12, behavior: '增加两颗轨道球' },
   'base-triangle': { name: '穿透飞刃', damage: 30, cooldown: .65, range: 650, radius: 8, behavior: '增加两枚侧翼飞刃' },
+  'base-diamond': { name: '聚焦射线', damage: 58, cooldown: 1.05, range: 720, radius: 7, behavior: '射线宽度增加 5' },
+  refraction: { name: '折射碎光', damage: 28, cooldown: 1.8, range: 240, radius: 5, behavior: '折射目标增加 2' },
+  'base-pentagon': { name: '符点追击', damage: 28, cooldown: .8, range: 600, radius: 7, behavior: '额外发射一枚符点' },
+  sigil: { name: '延时法阵', damage: 75, cooldown: 1.6, range: 0, radius: 135, behavior: '法阵上限增加 2，爆炸范围增加 25' },
+  'base-hexagon': { name: '重锤横扫', damage: 64, cooldown: 1.1, range: 135, radius: 135, behavior: '横扫角度扩大 40 度' },
+  fissure: { name: '震地裂纹', damage: 48, cooldown: 2.2, range: 290, radius: 28, behavior: '裂纹宽度增加 12，击退距离增加 30' },
   homing: { name: '追踪弹', damage: 24, cooldown: 1.2, range: 600, radius: 7, behavior: '命中后分裂两枚飞弹' },
   lightning: { name: '连锁闪电', damage: 30, cooldown: 1.8, range: 600, radius: 180, behavior: '传导目标数增加 2' },
   boomerang: { name: '回旋刃', damage: 24, cooldown: 1.8, range: 300, radius: 14, behavior: '额外发射一枚回旋刃' },
@@ -75,6 +86,11 @@ export const ACTIVE = {
   square: { radius: 180, shield: 35, duration: 4, knockback: 100 },
   circle: { radius: 200, duration: 2 },
   triangle: { distance: 160, duration: .2, damage: 35 },
+} as const;
+export const HERO_MECHANICS = {
+  diamond: { blinkDistance: 160, decoyDuration: 2, decoyRange: 300, beamLength: 900, beamWidth: 24, ultimateDamage: 230 },
+  pentagon: { sigilLimit: 6, sigilLife: 7, triggerRadius: 30, delay: .45, slow: .3, webRadius: 240, webDamage: 100 },
+  hexagon: { sweepAngle: Math.PI * 5 / 9, windup: .4, activeRadius: 175, activeDamage: 120, reduction: .25, overdriveCooldown: .55, overdriveRange: 60, finaleRadius: 210, finaleDamage: 120 },
 } as const;
 export const ULTIMATE = {
   square: { radius: 260, damage: 35, reduction: .4 },

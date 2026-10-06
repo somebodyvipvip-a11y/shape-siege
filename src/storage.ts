@@ -1,4 +1,5 @@
 import type { CharacterId, GameState } from './game/types';
+import { CHARACTER_IDS, STARTING_CHARACTERS } from './game/config';
 
 export interface Settings {
   autoSkill: boolean; music: number; sound: number; quality: 'default' | 'low'; reducedMotion: boolean; shake: boolean;
@@ -12,7 +13,7 @@ export interface SaveData {
 export interface StoragePort { getItem(key: string): string | null; setItem(key: string, value: string): void }
 export const SAVE_KEY = 'block-battle.save';
 export function defaultSave(): SaveData {
-  return { schemaVersion: 1, seenReleaseVersion: '', settings: { autoSkill: false, music: .25, sound: .55, quality: 'default', reducedMotion: false, shake: true }, unlocked: ['circle'], best: { kills: 0, time: 0, level: 1, victories: 0, bestStage: 1 }, stats: { runs: 0, kills: 0, time: 0, bestStage: 1 } };
+  return { schemaVersion: 1, seenReleaseVersion: '', settings: { autoSkill: false, music: .25, sound: .55, quality: 'default', reducedMotion: false, shake: true }, unlocked: [...STARTING_CHARACTERS], best: { kills: 0, time: 0, level: 1, victories: 0, bestStage: 1 }, stats: { runs: 0, kills: 0, time: 0, bestStage: 1 } };
 }
 const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const number = (value: unknown, fallback: number, max = Number.MAX_SAFE_INTEGER): number => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.min(max, value) : fallback;
@@ -39,7 +40,7 @@ export function validateSave(raw: unknown): SaveData {
     schemaVersion: 1,
     seenReleaseVersion: typeof data.seenReleaseVersion === 'string' && /^\d+\.\d+\.\d+$/.test(data.seenReleaseVersion) ? data.seenReleaseVersion : '',
     settings: { autoSkill: bool(settings.autoSkill, false), music: number(settings.music, .25, 1), sound: number(settings.sound, .55, 1), quality: settings.quality === 'low' ? 'low' : 'default', reducedMotion: bool(settings.reducedMotion, false), shake: bool(settings.shake, true) },
-    unlocked: ['circle', ...(['square', 'triangle'] as const).filter(id => unlocked.includes(id))],
+    unlocked: CHARACTER_IDS.filter(id => STARTING_CHARACTERS.includes(id) || unlocked.includes(id)),
     best: { kills: Math.floor(number(best.kills, 0)), time: number(best.time, 0, 300), level: Math.max(1, Math.floor(number(best.level, 1))), victories: Math.floor(number(best.victories, 0)), bestStage: Math.max(1, Math.floor(number(best.bestStage, 1))) },
     stats: { runs: Math.floor(number(stats.runs, 0)), kills: Math.floor(number(stats.kills, 0)), time: number(stats.time, 0), bestStage: Math.max(1, Math.floor(number(stats.bestStage, 1))) },
   };
@@ -53,7 +54,11 @@ export class SaveStore {
       if (text) {
         const raw: unknown = JSON.parse(text);
         this.data = validateSave(raw);
-        if (JSON.stringify(canonical(fill(raw, this.data))) !== JSON.stringify(canonical(this.data))) this.warning = '部分本地数据不完整，已恢复为安全值。';
+        const source = record(raw);
+        // 新角色初始可用属于迁移，补齐它们不应被报告为存档损坏。
+        const migrated = source.schemaVersion === 1 && Array.isArray(source.unlocked)
+          ? { ...source, unlocked: [...source.unlocked, ...STARTING_CHARACTERS.filter(id => !(source.unlocked as unknown[]).includes(id))] } : raw;
+        if (JSON.stringify(canonical(fill(migrated, this.data))) !== JSON.stringify(canonical(this.data))) this.warning = '部分本地数据不完整，已恢复为安全值。';
       }
       if (!port) this.warning = '浏览器未提供本地保存，本次仍可正常游玩。';
     } catch { this.warning = '本地存档无法读取，已使用默认数据。'; }

@@ -1,4 +1,4 @@
-import { CONFIG, ELEMENT_CONFIG, ENEMIES, EXPLOSION, ULTIMATE } from './config';
+import { CONFIG, ELEMENT_CONFIG, ENEMIES, EXPLOSION, HERO_MECHANICS, ULTIMATE } from './config';
 import { stageScale } from './scaling';
 import { navigationDirection, prepareNavigation } from './navigation';
 import { blocked, distanceSq } from './spatial';
@@ -82,6 +82,7 @@ export function damagePlayer(world: WorldAccess, amount: number, contact = false
   const p = world.state.player;
   if (p.hp <= 0 || (contact && (p.invulnerable > 0 || p.dashTime > 0))) return;
   if (p.characterId === 'square' && p.ultimateDuration > 0) amount *= 1 - ULTIMATE.square.reduction;
+  if (p.characterId === 'hexagon' && p.skillDuration > 0) amount *= 1 - HERO_MECHANICS.hexagon.reduction;
   // 防御结算顺序：闪避（仅接触伤害）→ 护甲（全来源固定减免，至少保留 1 点）→ 护盾 → 生命。
   if (contact && p.dodge > 0) amount *= 1 - p.dodge;
   if (p.armor > 0) amount = Math.max(1, amount - p.armor);
