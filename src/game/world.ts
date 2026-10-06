@@ -84,6 +84,7 @@ export class GameWorld implements WorldAccess {
   damagePlayer(amount: number, contact = false): void { damagePlayer(this, amount, contact); }
   move(body: Vec & { radius: number }, dx: number, dy: number): void { moveBody(body, dx, dy, this.state.obstacles); }
   rewardChoice(): void { this.progression.reward(); }
+  grantXp(value: number): void { this.progression.addXp(value); }
 
   spawnEnemy(kind: EnemyKind, position?: Vec, summoned = false, eventEnemy = false): Enemy | null {
     const s = this.state, config = ENEMIES[kind];

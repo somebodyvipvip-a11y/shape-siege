@@ -396,7 +396,8 @@ describe('导演、地图事件与结算', () => {
     world.state.event = { x: e.x, y: e.y, kind: 'elite', remaining: 90, progress: 0, enemyId: e.id };
     world.damage(e, 5000, 'active'); world.debug.resolveResult();
     expect(world.state.pendingUpgrades).toBe(1); expect(world.state.eliteKills).toBe(0); expect(world.state.player.energy).toBe(20);
-    expect(world.state.pickups[0].value).toBe(ENEMIES['elite-tank'].xp * CONFIG.xpMultiplier);
+    expect(world.state.pickups.filter(p => p.kind === 'xp')).toHaveLength(10);
+    expect(world.state.pickups.filter(p => p.kind === 'xp').reduce((sum, p) => sum + p.value, 0)).toBeCloseTo(ENEMIES['elite-tank'].xp * CONFIG.xpMultiplier);
   });
   it('玩家死亡优先于超时，首领被击破不再直接结算而交给关卡推进', () => {
     const dead = new GameWorld();
@@ -784,4 +785,49 @@ it('输出保底只覆盖前三次，事件奖励计数且非法选择不计数'
   }
   progression.reward();
   expect(world.state.choices.every(c => c.kind === 'stat' && c.id !== 'stat:damage' && c.id !== 'rare:skillBoost')).toBe(true);
+});
+
+
+describe('按怪物类型散落经验', () => {
+  it('不同怪物掉落不同颗数，总经验保留关卡倍率', () => {
+    for (const stage of [1, 3]) for (const [kind, count] of [['chaser', 1], ['runner', 1], ['charger', 2], ['ranged', 2], ['tank', 3], ['elite-tank', 10], ['elite-charger', 10]] as const) {
+      const world = new GameWorld('square', 12); world.state.stage = stage;
+      const enemy = world.spawnEnemy(kind, { x: 1900, y: 1600 })!;
+      enemy.hp = 0; world.debug.resolveResult();
+      const drops = world.state.pickups.filter(p => p.kind === 'xp');
+      expect(drops).toHaveLength(count);
+      expect(drops.reduce((sum, p) => sum + p.value, 0)).toBeCloseTo(ENEMIES[kind].xp * CONFIG.xpMultiplier * (1 + .15 * (stage - 1)));
+      expect(new Set(drops.map(p => `${p.x}:${p.y}`)).size).toBe(count);
+      expect(drops.every(p => !blocked(p, 9, world.state.obstacles))).toBe(true);
+    }
+  });
+  it('附近已有经验时仍生成新的颗粒，不提前合成经验包', () => {
+    const world = new GameWorld('square');
+    for (let i = 0; i < 2; i++) {
+      const enemy = world.spawnEnemy('tank', { x: 1900, y: 1600 })!;
+      enemy.hp = 0; world.debug.resolveResult();
+    }
+    expect(world.state.pickups.filter(p => p.kind === 'xp')).toHaveLength(6);
+  });
+  it('容量不足时压缩溢出经验但不超上限、不丢总收益', () => {
+    const world = new GameWorld('square');
+    for (let i = 0; i < CONFIG.pickupLimit - 2; i++) world.state.pickups.push({ id: world.nextId(), x: 1900, y: 1600, kind: 'xp', value: 1, attracted: false });
+    const enemy = world.spawnEnemy('elite-tank', { x: 1900, y: 1600 })!;
+    enemy.hp = 0; world.debug.resolveResult();
+    expect(world.state.pickups).toHaveLength(CONFIG.pickupLimit);
+    expect(world.state.pickups.reduce((sum, p) => sum + p.value, 0)).toBeCloseTo(CONFIG.pickupLimit - 2 + 50);
+  });
+  it('容量全是治疗物时直接保留经验，散落遇墙时回到安全死亡点', () => {
+    const world = new GameWorld('square');
+    for (let i = 0; i < CONFIG.pickupLimit; i++) world.state.pickups.push({ id: world.nextId(), x: 1900, y: 1600, kind: 'heal', value: 1, attracted: false });
+    const enemy = world.spawnEnemy('chaser', { x: 1900, y: 1600 })!;
+    enemy.hp = 0; world.debug.resolveResult();
+    expect(world.state.xp).toBeCloseTo(2.5); expect(world.state.pickups).toHaveLength(CONFIG.pickupLimit);
+    const nearWall = new GameWorld('square');
+    nearWall.state.obstacles = [{ x: 1950, y: 1500, width: 30, height: 200 }];
+    const elite = nearWall.spawnEnemy('elite-tank', { x: 1900, y: 1600 })!;
+    elite.hp = 0; nearWall.debug.resolveResult();
+    expect(nearWall.state.pickups.filter(p => p.kind === 'xp').every(p => !blocked(p, 9, nearWall.state.obstacles))).toBe(true);
+    expect(nearWall.state.pickups.some(p => p.kind === 'xp' && p.x === elite.x && p.y === elite.y)).toBe(true);
+  });
 });

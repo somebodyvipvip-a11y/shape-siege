@@ -51,16 +51,16 @@ export const SKILLS: Record<SkillId, { name: string; damage: number; cooldown: n
 };
 export const GENERIC_SKILLS: SkillId[] = ['homing', 'lightning', 'boomerang', 'mine', 'shockwave', 'meteor'];
 export const ELEMENT_NAMES = { fire: '火', ice: '冰', lightning: '雷' } as const;
-export const ENEMIES: Record<EnemyKind, { hp: number; speed: number; radius: number; damage: number; xp: number; energy: number }> = {
-  chaser: { hp: 30, speed: 80, radius: 14, damage: 10, xp: 2, energy: 1 },
-  runner: { hp: 20, speed: 128, radius: 11, damage: 8, xp: 2, energy: 1 },
-  tank: { hp: 90, speed: 50, radius: 23, damage: 18, xp: 4, energy: 1 },
-  charger: { hp: 50, speed: 76, radius: 16, damage: 16, xp: 2, energy: 1 },
-  ranged: { hp: 40, speed: 68, radius: 16, damage: 12, xp: 2, energy: 1 },
-  'elite-tank': { hp: 800, speed: 50, radius: 38, damage: 28, xp: 40, energy: 20 },
-  'elite-charger': { hp: 1000, speed: 95, radius: 32, damage: 26, xp: 40, energy: 20 },
+export const ENEMIES: Record<EnemyKind, { hp: number; speed: number; radius: number; damage: number; xp: number; xpDrops: number; energy: number }> = {
+  chaser: { hp: 30, speed: 80, radius: 14, damage: 10, xp: 2, xpDrops: 1, energy: 1 },
+  runner: { hp: 20, speed: 128, radius: 11, damage: 8, xp: 2, xpDrops: 1, energy: 1 },
+  tank: { hp: 90, speed: 50, radius: 23, damage: 18, xp: 4, xpDrops: 3, energy: 1 },
+  charger: { hp: 50, speed: 76, radius: 16, damage: 16, xp: 2, xpDrops: 2, energy: 1 },
+  ranged: { hp: 40, speed: 68, radius: 16, damage: 12, xp: 2, xpDrops: 2, energy: 1 },
+  'elite-tank': { hp: 800, speed: 50, radius: 38, damage: 28, xp: 40, xpDrops: 10, energy: 20 },
+  'elite-charger': { hp: 1000, speed: 95, radius: 32, damage: 26, xp: 40, xpDrops: 10, energy: 20 },
   // 首领需在 4:00–5:00 的 60 秒窗口内击破：基础生命 3000，与清退普通怪和降低召唤量共同保证输出窗口。
-  boss: { hp: 3000, speed: 55, radius: 60, damage: 30, xp: 0, energy: 0 },
+  boss: { hp: 3000, speed: 55, radius: 60, damage: 30, xp: 0, xpDrops: 0, energy: 0 },
 };
 export const ACTIVE = {
   square: { radius: 180, shield: 35, duration: 4, knockback: 100 },

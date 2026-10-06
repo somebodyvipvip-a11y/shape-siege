@@ -60,4 +60,5 @@ export interface WorldAccess {
   addEffect(data: Partial<Effect> & Vec): Effect | null;
   move(body: Vec & { radius: number }, dx: number, dy: number): void;
   rewardChoice(): void;
+  grantXp(value: number): void;
 }

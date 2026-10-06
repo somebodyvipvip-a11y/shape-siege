@@ -1,6 +1,6 @@
 import { CONFIG, ELEMENT_CONFIG, ENEMIES, ULTIMATE } from './config';
 import { stageScale } from './scaling';
-import { distanceSq } from './spatial';
+import { blocked, distanceSq } from './spatial';
 import type { Enemy, SkillId, WorldAccess } from './types';
 
 export function damageEnemy(world: WorldAccess, enemy: Enemy, amount: number, skillId: SkillId | 'active' | 'ultimate', elements = true): void {
@@ -88,19 +88,34 @@ export function collectDeaths(world: WorldAccess): void {
     if (enemy.kind === 'boss') s.bossDefeated = true;
     else {
       if (enemy.kind.startsWith('elite') && !enemy.eventEnemy) s.eliteKills++;
-      const xp = config.xp * xpScale;
-      const nearby = s.pickups.find(p => p.kind === 'xp' && distanceSq(p, enemy) < 64 ** 2);
-      if (nearby) nearby.value += xp;
-      else if (s.pickups.length < CONFIG.pickupLimit) s.pickups.push({ id: world.nextId(), x: enemy.x, y: enemy.y, kind: 'xp', value: xp, attracted: false });
-      else {
-        const merge = s.pickups.find(p => p.kind === 'xp');
-        if (merge) merge.value += xp;
-      }
+      dropXp(world, enemy, config.xp * xpScale, config.xpDrops);
       rollDrops(world, enemy.x, enemy.y);
     }
     if (s.event?.enemyId === enemy.id) { world.rewardChoice(); s.event = null; }
   }
   s.enemies.length = write;
+}
+/** 按怪物种类散落多颗经验；仅到达总掉落上限后才压缩，保留总收益。 */
+function dropXp(world: WorldAccess, enemy: Enemy, total: number, count: number): void {
+  if (total <= 0 || count <= 0) return;
+  const s = world.state, unit = total / count;
+  for (let i = 0; i < count; i++) {
+    const value = i === count - 1 ? total - unit * (count - 1) : unit;
+    if (s.pickups.length >= CONFIG.pickupLimit) {
+      // 只在容量耗尽时合并最近的经验，不改变正常掉落的颗粒数。
+      let nearest = s.pickups.find(drop => drop.kind === 'xp');
+      for (const drop of s.pickups) if (drop.kind === 'xp' && nearest && distanceSq(drop, enemy) < distanceSq(nearest, enemy)) nearest = drop;
+      if (nearest) nearest.value += value;
+      else world.grantXp(value); // 全部容量被非经验物占用时，直接计入，避免损失经验。
+      continue;
+    }
+    // 使用实体编号决定相位，不额外消耗战斗随机流。
+    const angle = enemy.id * 2.399963229728653 + i * Math.PI * 2 / count;
+    const radius = count === 1 ? 0 : enemy.radius + 10;
+    const point = { x: enemy.x + Math.cos(angle) * radius, y: enemy.y + Math.sin(angle) * radius };
+    if (blocked(point, 9, s.obstacles)) { point.x = enemy.x; point.y = enemy.y; }
+    s.pickups.push({ id: world.nextId(), ...point, kind: 'xp', value, attracted: false });
+  }
 }
 /** 掉落平衡：补血＝续航（受伤越重掉率越高，满血不产出），生命上限＝构筑（低概率永久收益）。 */
 function rollDrops(world: WorldAccess, x: number, y: number): void {
