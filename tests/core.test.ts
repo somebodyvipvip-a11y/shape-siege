@@ -300,6 +300,14 @@ describe('元素、技能与大招', () => {
       expect(world.state.damageBySkill[id], id).toBeGreaterThan(0);
     }
   });
+  it('星环轨道球在贴脸距离也能造成伤害', () => {
+    for (const offset of [20, 30, 40]) {
+      const world = new GameWorld('circle', 1);
+      const target = dummy(world, offset);
+      steps(world, 240);
+      expect(target.hp, `offset=${offset}`).toBeLessThan(1000);
+    }
+  });
   it('三角色普通技能和大招遵循护盾、引力、五轮飞刃与能量规则', () => {
     const square = new GameWorld('square');
     activateSkill(square); expect(square.state.player.shield).toBe(35);

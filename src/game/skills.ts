@@ -97,15 +97,25 @@ export function updateSkills(world: WorldAccess, dt: number): void {
     }
   }
 }
+function spokeDistanceSq(point: Vec, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax, dy = by - ay, lengthSq = dx * dx + dy * dy;
+  const t = lengthSq ? Math.max(0, Math.min(1, ((point.x - ax) * dx + (point.y - ay) * dy) / lengthSq)) : 0;
+  return (point.x - (ax + t * dx)) ** 2 + (point.y - (ay + t * dy)) ** 2;
+}
 function updateOrbit(world: WorldAccess, skill: SkillState): void {
   const p = world.state.player;
   const radius = p.skillDuration > 0 ? ACTIVE.circle.radius : SKILLS[skill.id].range + (skill.level - 1) * 4;
+  const ball = SKILLS[skill.id].radius;
   const count = 2 + Math.floor((skill.level - 1) / 3) + (skill.enhanced ? 2 : 0);
   for (let i = 0; i < count; i++) {
     const angle = world.state.time * 2.8 + i * Math.PI * 2 / count;
-    const position = { x: p.x + Math.cos(angle) * radius, y: p.y + Math.sin(angle) * radius };
-    const targets = [...world.nearby(position, SKILLS[skill.id].radius + 60)];
-    for (const enemy of targets) if (distanceSq(position, enemy) <= (SKILLS[skill.id].radius + enemy.radius) ** 2 && (enemy.orbitHits.get(i) ?? 0) <= world.state.time) {
+    const tipX = p.x + Math.cos(angle) * radius, tipY = p.y + Math.sin(angle) * radius;
+    // 轨道球扫过的是一条从圆心到圆环的辐条，贴脸的敌人也会被碾到，而不是进入内圈后完全免疫。
+    const targets = [...world.nearby(p, radius + ball + 60)];
+    for (const enemy of targets) {
+      if ((enemy.orbitHits.get(i) ?? 0) > world.state.time) continue;
+      const reach = ball + enemy.radius;
+      if (spokeDistanceSq(enemy, p.x, p.y, tipX, tipY) > reach * reach) continue;
       enemy.orbitHits.set(i, world.state.time + SKILLS[skill.id].cooldown);
       world.damage(enemy, skillDamage(world.state, skill.id), skill.id);
     }
