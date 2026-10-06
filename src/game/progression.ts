@@ -101,6 +101,47 @@ export class Progression {
     this.roll();
     return true;
   }
+  /** 每关通关的大礼包奖池，独立于升级卡；沿用升级随机流，保持与战斗随机独立。 */
+  giftCandidates(): UpgradeChoice[] {
+    const p = this.state.player, pool: UpgradeChoice[] = [];
+    pool.push({ id: 'gift:heal', kind: 'stat', name: '满血强化', description: '生命完全恢复，且生命上限增加 20' });
+    pool.push({ id: 'gift:damage', kind: 'stat', name: '伤害增幅', description: '所有直接伤害增加 12%' });
+    if (p.cooldownReduction < CONFIG.cooldownCap) pool.push({ id: 'gift:cooldown', kind: 'stat', name: '冷却增幅', description: '冷却缩减增加 8%' });
+    pool.push({ id: 'gift:pickup', kind: 'stat', name: '拾取增幅', description: '经验吸取范围增加 50' });
+    if (p.speedBonus < CONFIG.speedBonusCap) pool.push({ id: 'gift:speed', kind: 'stat', name: '疾行增幅', description: '移动速度增加 8%' });
+    if (p.dodge < CONFIG.dodgeCap) pool.push({ id: 'gift:dodge', kind: 'stat', name: '闪避增幅', description: '接触伤害闪避增加 5%' });
+    if (p.armor < CONFIG.armorCap) pool.push({ id: 'gift:armor', kind: 'stat', name: '护甲增幅', description: '受到的所有伤害减少 3' });
+    if (p.critChance < CONFIG.critCap) pool.push({ id: 'gift:crit', kind: 'stat', name: '暴击增幅', description: '暴击率增加 8%' });
+    if (p.skills.some(s => s.level < CONFIG.skillMaxLevel)) pool.push({ id: 'gift:skill', kind: 'stat', name: '技能跃升', description: '随机一个已拥有技能 +1 级' });
+    pool.push({ id: 'gift:reroll', kind: 'stat', name: '重抽储备', description: '本局重抽次数 +1' });
+    return pool;
+  }
+  rollGift(): UpgradeChoice[] {
+    const pool = this.giftCandidates(), choices: UpgradeChoice[] = [];
+    while (choices.length < 3 && pool.length) choices.push(pool.splice(Math.floor(this.random() * pool.length), 1)[0]);
+    return choices;
+  }
+  chooseGift(id: string): boolean {
+    const s = this.state, p = s.player;
+    const choice = s.gift.find(c => c.id === id);
+    if (s.result || !choice || !s.gift.length) return false;
+    if (choice.id === 'gift:heal') { p.maxHp += 20; p.hp = p.maxHp; }
+    else if (choice.id === 'gift:damage') p.damageBonus += .12;
+    else if (choice.id === 'gift:cooldown') p.cooldownReduction = Math.min(CONFIG.cooldownCap, p.cooldownReduction + .08);
+    else if (choice.id === 'gift:pickup') p.pickupRadius += 50;
+    else if (choice.id === 'gift:speed') {
+      p.speedBonus = Math.min(CONFIG.speedBonusCap, p.speedBonus + .08);
+      p.speed = CHARACTERS[p.characterId].speed * (1 + p.speedBonus);
+    } else if (choice.id === 'gift:dodge') p.dodge = Math.min(CONFIG.dodgeCap, p.dodge + .05);
+    else if (choice.id === 'gift:armor') p.armor = Math.min(CONFIG.armorCap, p.armor + 3);
+    else if (choice.id === 'gift:crit') p.critChance = Math.min(CONFIG.critCap, p.critChance + .08);
+    else if (choice.id === 'gift:skill') {
+      const upgradable = p.skills.filter(s => s.level < CONFIG.skillMaxLevel);
+      if (upgradable.length) upgradable[Math.floor(this.random() * upgradable.length)].level++;
+    } else if (choice.id === 'gift:reroll') s.rerolls++;
+    s.gift = [];
+    return true;
+  }
 }
 
 export function skillDamage(state: GameState, id: SkillId): number {

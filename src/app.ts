@@ -6,11 +6,11 @@ import { browserSave, type Settings } from './storage';
 import type { BattleRenderer } from './render/scene';
 import { menuHTML } from './ui/menu';
 import { HUD, hudHTML } from './ui/hud';
-import { confirmLeaveHTML, helpHTML, loadingHTML, pauseHTML, resultHTML, settingsHTML, upgradeHTML } from './ui/overlays';
+import { confirmLeaveHTML, giftHTML, helpHTML, loadingHTML, pauseHTML, resultHTML, settingsHTML, upgradeHTML } from './ui/overlays';
 import { escapeHTML, icon } from './ui/shared';
 import { handleDialogEscape } from './ui/dialog-input';
 
-type Panel = 'none' | 'pause' | 'upgrade' | 'result' | 'settings' | 'help' | 'leave' | 'loading' | 'error';
+type Panel = 'none' | 'pause' | 'upgrade' | 'gift' | 'result' | 'settings' | 'help' | 'leave' | 'loading' | 'error';
 export class GameApp {
   private save = browserSave();
   private audio = new GameAudio(this.save.data.settings);
@@ -109,6 +109,10 @@ export class GameApp {
       if (this.panel !== 'result') { this.setPanel('result', resultHTML(state, this.newly)); this.audio.play('result'); }
       return;
     }
+    if (state.gift.length && !['settings', 'help'].includes(this.panel)) {
+      if (this.panel !== 'gift') { this.setPanel('gift', giftHTML(state)); this.audio.play('upgrade'); }
+      return;
+    }
     if (state.pendingUpgrades > 0 && !['settings', 'help'].includes(this.panel)) {
       const signature = `${state.pendingUpgrades}/${state.rerolls}/${state.choices.map(choice => choice.id).join('|')}`;
       if (this.panel !== 'upgrade' || signature !== this.panelSignature) { const first = this.panel !== 'upgrade'; this.setPanel('upgrade', upgradeHTML(state, this.rewards[0] ?? false)); this.panelSignature = signature; if (first) this.audio.play('upgrade'); }
@@ -132,6 +136,7 @@ export class GameApp {
   private pause(): void {
     if (!this.world || this.world.state.result || this.starting) return;
     const state = this.world.state;
+    if (state.gift.length) { this.setPanel('gift', giftHTML(state)); return; }
     if (state.pendingUpgrades > 0) {
       this.world.setPaused(true);
       this.setPanel('upgrade', upgradeHTML(state, this.rewards[0] ?? false)); return;
@@ -141,6 +146,7 @@ export class GameApp {
   }
   private resume(): void {
     if (!this.world || this.world.state.result) return;
+    if (this.world.state.gift.length) { this.setPanel('gift', giftHTML(this.world.state)); return; }
     if (this.world.state.pendingUpgrades > 0) { this.setPanel('upgrade', upgradeHTML(this.world.state, this.rewards[0] ?? false)); return; }
     this.world.setPaused(false); this.setPanel('none'); this.requestMusic();
   }
@@ -180,6 +186,13 @@ export class GameApp {
       if (this.world.state.pendingUpgrades) { this.setPanel('upgrade', upgradeHTML(this.world.state, this.rewards[0] ?? false)); this.panelSignature = signature === '' ? '' : 'refresh'; }
       else if (this.world.state.paused) this.setPanel('pause', pauseHTML(this.world.state));
       else { this.setPanel('none'); this.requestMusic(); }
+      return;
+    }
+    const gift = button.dataset.gift;
+    if (gift && this.world && this.panel === 'gift') {
+      if (!this.world.chooseGift(gift)) return;
+      this.audio.play('select');
+      this.setPanel('none'); this.requestMusic();
       return;
     }
     switch (button.dataset.action) {

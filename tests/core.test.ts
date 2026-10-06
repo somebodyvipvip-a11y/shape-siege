@@ -330,13 +330,14 @@ describe('元素、技能与大招', () => {
 
 describe('导演、地图事件与结算', () => {
   it('阶段名称、刷怪组合和批次保持原边界，事件精英与首领使用统一时刻', () => {
+    const mixed = ['chaser', 'runner', 'tank', 'charger', 'ranged'];
     const boundaries = [
       [0, '初始围攻', 1, ['chaser']],
-      [35, '初始围攻', 1, ['chaser', 'chaser', 'runner']],
-      [120, '重甲来袭', 2, ['chaser', 'runner', 'tank']],
-      [180, '精英围攻', 2, ['chaser', 'runner', 'tank', 'charger', 'ranged']],
-      [360, '高压混战', 3, ['chaser', 'runner', 'tank', 'charger', 'ranged']],
-      [540, '六边核心', 3, ['chaser', 'runner', 'tank', 'charger', 'ranged']],
+      [30, '初始围攻', 1, ['chaser', 'chaser', 'runner']],
+      [60, '重甲来袭', 2, ['chaser', 'runner', 'tank']],
+      [120, '精英围攻', 2, mixed],
+      [150, '高压混战', 3, mixed],
+      [240, '六边核心', 3, mixed],
     ] as const;
     for (const [index, [at, name, batch, enemies]] of boundaries.entries()) {
       expect(stageAt(at)).toMatchObject({ name, batch, enemies });
@@ -351,9 +352,9 @@ describe('导演、地图事件与结算', () => {
         for (const enemy of ordinary) expect(enemies).toContain(enemy.kind);
       } else expect(world.state.bossSpawned).toBe(true);
     }
-    expect(DIRECTOR.eliteTimes).toEqual([180, 360]);
-    expect(DIRECTOR.eventTimes).toEqual([120, 300]);
-    expect(CONFIG.bossAt).toBe(540);
+    expect(DIRECTOR.eliteTimes).toEqual([120, 210]);
+    expect(DIRECTOR.eventTimes).toEqual([90, 180]);
+    expect(CONFIG.bossAt).toBe(240);
   });
   it('刷怪保持真实视野外的净距，出生区畅通且上限不积压补发', () => {
     const world = new GameWorld('circle', 9);
@@ -395,19 +396,20 @@ describe('导演、地图事件与结算', () => {
     expect(world.state.pendingUpgrades).toBe(1); expect(world.state.eliteKills).toBe(0); expect(world.state.player.energy).toBe(20);
     expect(world.state.pickups[0].value).toBe(40);
   });
-  it('玩家死亡优先首领死亡，首领死亡优先超时，结果固定且危险立即清空', () => {
-    for (const playerDead of [false, true]) {
-      const world = new GameWorld();
-      const boss = world.spawnEnemy('boss', { x: 1900, y: 1600 })!;
-      world.state.time = 720; boss.hp = 0; if (playerDead) world.state.player.hp = 0;
-      world.addProjectile({ x: 1800, y: 1600, owner: 'enemy', damage: 30 });
-      world.addEffect({ x: 1600, y: 1600, owner: 'enemy', kind: 'warning', damage: 30, delay: 1 });
-      world.debug.resolveResult();
-      expect(world.state.result).toBe(playerDead ? 'death' : 'victory');
-      expect(world.state.projectiles).toHaveLength(0); expect(world.state.effects).toHaveLength(0); expect(world.state.enemies).toHaveLength(0);
-      world.state.player.hp = 0; world.debug.resolveResult(); expect(world.state.result).toBe(playerDead ? 'death' : 'victory');
-    }
-    const timed = new GameWorld(); timed.state.time = 720; timed.debug.resolveResult(); expect(timed.state.result).toBe('timeout');
+  it('玩家死亡优先于超时，首领被击破不再直接结算而交给关卡推进', () => {
+    const dead = new GameWorld();
+    dead.state.time = CONFIG.timeout; dead.state.player.hp = 0;
+    dead.addProjectile({ x: 1800, y: 1600, owner: 'enemy', damage: 30 });
+    dead.addEffect({ x: 1600, y: 1600, owner: 'enemy', kind: 'warning', damage: 30, delay: 1 });
+    dead.debug.resolveResult();
+    expect(dead.state.result).toBe('death');
+    expect(dead.state.projectiles).toHaveLength(0); expect(dead.state.effects).toHaveLength(0);
+    const timed = new GameWorld(); timed.state.time = CONFIG.timeout; timed.debug.resolveResult(); expect(timed.state.result).toBe('timeout');
+    const cleared = new GameWorld();
+    const boss = cleared.spawnEnemy('boss', { x: 1900, y: 1600 })!;
+    boss.hp = 0; cleared.state.time = CONFIG.timeout;
+    cleared.debug.resolveResult();
+    expect(cleared.state.result).toBeNull();
   });
   it('同一模拟步伤害结算后判定玩家死亡与首领死亡', () => {
     const world = new GameWorld('square'); const p = world.state.player;
@@ -422,26 +424,62 @@ describe('导演、地图事件与结算', () => {
     const world = new GameWorld('circle', 991);
     world.state.player.hp = 1e9; world.state.player.maxHp = 1e9;
     const seen = new Set<string>();
-    let firstEvent = false, secondEvent = false;
+    let firstEvent = false, secondEvent = false, bossSeen = false;
     const summonedIds = new Set<number>();
-    for (let frame = 0; frame < 565 * 60 && !world.state.result; frame++) {
+    for (let frame = 0; frame < 600 * 60 && !world.state.result; frame++) {
       while (world.state.pendingUpgrades) {
         const choice = world.state.choices.find(c => c.kind === 'new') ?? world.state.choices.find(c => c.kind === 'level') ?? world.state.choices[0];
         world.chooseUpgrade(choice.id);
       }
+      if (world.state.gift.length) world.chooseGift(world.state.gift[0].id);
       world.update(CONFIG.step, idle);
-      for (const e of world.state.enemies) { seen.add(e.kind); if (e.summoned) { seen.add('summoned'); summonedIds.add(e.id); } }
+      for (const e of world.state.enemies) { seen.add(e.kind); if (e.kind === 'boss') bossSeen = true; if (e.summoned) { seen.add('summoned'); summonedIds.add(e.id); } }
       if (world.state.event?.kind === 'elite') firstEvent = true;
       if (world.state.event?.kind === 'charge') secondEvent = true;
     }
     expect(firstEvent).toBe(true); expect(secondEvent).toBe(true);
     expect([...seen]).toEqual(expect.arrayContaining(['chaser', 'runner', 'tank', 'charger', 'ranged', 'elite-tank', 'elite-charger', 'boss', 'summoned']));
-    expect(world.state.bossSpawned).toBe(true);
+    expect(bossSeen).toBe(true);
     expect(summonedIds.size).toBeGreaterThanOrEqual(10);
     expect(world.state.enemies.filter(e => e.summoned).length).toBeLessThanOrEqual(30);
     expect(world.state.enemies.length).toBeLessThanOrEqual(253);
     expect(world.state.pickups.length).toBeLessThanOrEqual(CONFIG.pickupLimit);
   }, 30000);
+});
+
+describe('连续闯关与难度缩放', () => {
+  it('击破首领会清场并给出大礼包，选择后进入下一关并保留成长', () => {
+    const world = new GameWorld('circle', 12);
+    world.debug.addXp(30);
+    while (world.state.pendingUpgrades) world.chooseUpgrade(world.state.choices[0].id);
+    const level = world.state.level, skills = world.state.player.skills.map(s => s.id);
+    const boss = world.spawnEnemy('boss', { x: world.state.player.x + 300, y: world.state.player.y })!;
+    boss.hp = 0;
+    world.update(CONFIG.step, idle);
+    expect(world.state.bossDefeated).toBe(true);
+    expect(world.state.enemies).toHaveLength(0);
+    expect(world.state.gift).toHaveLength(3);
+    expect(new Set(world.state.gift.map(c => c.id)).size).toBe(3);
+    expect(world.state.stage).toBe(1);
+    expect(world.chooseGift(world.state.gift[0].id)).toBe(true);
+    expect(world.state.stage).toBe(2);
+    expect(world.state.time).toBe(0);
+    expect(world.state.bossDefeated).toBe(false);
+    expect(world.state.gift).toHaveLength(0);
+    expect(world.state.level).toBe(level);
+    expect(world.state.player.skills.map(s => s.id)).toEqual(skills);
+  });
+  it('第 2 关敌人生命与伤害更高，第 1 关倍率为 1', () => {
+    const first = new GameWorld('circle', 5);
+    const basic = first.spawnEnemy('chaser', { x: 1000, y: 1000 })!;
+    expect(basic.maxHp).toBe(30); expect(basic.damage).toBe(10); expect(basic.speed).toBe(90);
+    const second = new GameWorld('circle', 5);
+    second.state.stage = 2;
+    const stronger = second.spawnEnemy('chaser', { x: 1000, y: 1000 })!;
+    expect(stronger.maxHp).toBeCloseTo(30 * 1.35); expect(stronger.damage).toBeCloseTo(10 * 1.15); expect(stronger.speed).toBeCloseTo(90 * 1.04);
+    const boss = second.spawnEnemy('boss', { x: 1900, y: 1600 })!;
+    expect(boss.maxHp).toBeCloseTo(9000 * 1.5);
+  });
 });
 
 describe('暴击、闪避与护甲', () => {

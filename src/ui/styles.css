@@ -856,6 +856,17 @@ small {
   border-radius: 7px
 }
 
+.hud-right .stage-badge {
+  background: #63e2c322;
+  border: 1px solid #63e2c355;
+  color: #9df3df;
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px
+}
+
 .xp-panel {
   display: flex;
   align-items: center;
@@ -1493,6 +1504,23 @@ small {
 .upgrade-card:hover {
   border-color: #63e2c3;
   transform: translateY(-3px)
+}
+
+.upgrade-card.gift-card {
+  border-color: #ffd36a66;
+  background: linear-gradient(145deg,#2b2718,#1d2233)
+}
+
+.upgrade-card.gift-card:hover {
+  border-color: #ffd36a
+}
+
+.upgrade-card.gift-card .upgrade-kind {
+  color: #ffd36a
+}
+
+.upgrade-card.gift-card h3 {
+  color: #ffe9b0
 }
 
 .upgrade-kind {

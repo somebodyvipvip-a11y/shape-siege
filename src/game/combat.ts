@@ -1,4 +1,5 @@
 import { CONFIG, ELEMENT_CONFIG, ENEMIES, ULTIMATE } from './config';
+import { stageScale } from './scaling';
 import { distanceSq } from './spatial';
 import type { Enemy, SkillId, WorldAccess } from './types';
 
@@ -75,6 +76,7 @@ export function updateStatuses(world: WorldAccess, dt: number): void {
 }
 export function collectDeaths(world: WorldAccess): void {
   const s = world.state;
+  const xpScale = stageScale(s.stage).xp;
   let write = 0;
   for (const enemy of s.enemies) {
     if (enemy.hp > 0) { s.enemies[write++] = enemy; continue; }
@@ -84,12 +86,13 @@ export function collectDeaths(world: WorldAccess): void {
     if (enemy.kind === 'boss') s.bossDefeated = true;
     else {
       if (enemy.kind.startsWith('elite') && !enemy.eventEnemy) s.eliteKills++;
+      const xp = config.xp * xpScale;
       const nearby = s.pickups.find(p => p.kind === 'xp' && distanceSq(p, enemy) < 64 ** 2);
-      if (nearby) nearby.value += config.xp;
-      else if (s.pickups.length < CONFIG.pickupLimit) s.pickups.push({ id: world.nextId(), x: enemy.x, y: enemy.y, kind: 'xp', value: config.xp, attracted: false });
+      if (nearby) nearby.value += xp;
+      else if (s.pickups.length < CONFIG.pickupLimit) s.pickups.push({ id: world.nextId(), x: enemy.x, y: enemy.y, kind: 'xp', value: xp, attracted: false });
       else {
         const merge = s.pickups.find(p => p.kind === 'xp');
-        if (merge) merge.value += config.xp;
+        if (merge) merge.value += xp;
       }
       if (world.random() < .025 && s.pickups.length < CONFIG.pickupLimit) s.pickups.push({ id: world.nextId(), x: enemy.x, y: enemy.y, kind: 'heal', value: 15, attracted: false });
     }
@@ -100,13 +103,12 @@ export function collectDeaths(world: WorldAccess): void {
 export function resolveResult(world: WorldAccess): void {
   const s = world.state;
   if (s.result) return;
+  // 连续闯关：首领被击破时由 GameWorld 推进关卡，不再直接结算胜利；此处只处理失败结局。
   if (s.player.hp <= 0) s.result = 'death';
-  else if (s.bossDefeated) s.result = 'victory';
-  else if (s.time >= CONFIG.timeout) s.result = 'timeout';
+  else if (!s.bossDefeated && s.time >= CONFIG.timeout) s.result = 'timeout';
   if (s.result) {
     s.projectiles.length = 0;
     s.effects.length = 0;
-    if (s.bossDefeated) s.enemies.length = 0;
     s.choices = [];
     s.pendingUpgrades = 0;
   }

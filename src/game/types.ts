@@ -45,7 +45,7 @@ export interface GameState {
   time: number; kills: number; level: number; xp: number; xpRequired: number; pendingUpgrades: number;
   choices: UpgradeChoice[]; rerolls: number; result: GameResult; event: MapEvent | null;
   damageBySkill: Record<string, number>; phase: string; paused: boolean; bossSpawned: boolean; bossDefeated: boolean;
-  eliteKills: number; warning: string | null; viewport: Vec; autoSkill: boolean;
+  eliteKills: number; warning: string | null; viewport: Vec; autoSkill: boolean; stage: number; gift: UpgradeChoice[];
 }
 /** Simulation modules share this interface, never browser or rendering objects. */
 export interface WorldAccess {

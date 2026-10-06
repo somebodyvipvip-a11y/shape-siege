@@ -1,6 +1,7 @@
 import type { CharacterId, EnemyKind, SkillId } from './types';
 
-export const STAGE_TIMES = { runners: 35, armor: 120, firstElite: 180, chargeEvent: 300, pressure: 360, boss: 540 } as const;
+// 单关 5:00 = 300 秒；节点即各阶段切换时刻，见 docs/tasks/gameplay-brief.md 第二节。
+export const STAGE_TIMES = { runners: 30, armor: 60, firstEvent: 90, firstElite: 120, pressure: 150, secondEvent: 180, secondElite: 210, boss: 240 } as const;
 interface Stage { at: number; name: string; batch: number; enemies: readonly EnemyKind[]; periodicRelief: boolean }
 const mixedEnemies: readonly EnemyKind[] = ['chaser', 'runner', 'tank', 'charger', 'ranged'];
 export const STAGES: readonly Stage[] = [
@@ -16,7 +17,7 @@ export function stageAt(time: number): Stage { return STAGES.reduce((stage, next
 export const CONFIG = {
   step: 1 / 60, maxCatchup: 5, mapSize: 3200, playerRadius: 16, spawnClearance: 120,
   enemyLimit: 250, playerProjectileLimit: 400, enemyProjectileLimit: 150, effectLimit: 300, pickupLimit: 300,
-  gridSize: 128, bossAt: STAGE_TIMES.boss, timeout: 720, contactProtection: .5, xpRadius: 80,
+  gridSize: 128, bossAt: STAGE_TIMES.boss, timeout: 300, contactProtection: .5, xpRadius: 80,
   skillMaxLevel: 8, autoSlots: 4, maxRerolls: 2, speedBonusCap: .3, cooldownCap: .4,
   critCap: .6, critMultBase: 1.5, critMultCap: 2.5, dodgeCap: .4, armorCap: 20,
   chargeRequired: 20, eventLifetime: 90, eventRadius: 150,
@@ -61,7 +62,7 @@ export const ULTIMATE = {
   triangle: { rounds: 5, blades: 8, damage: 30 },
 } as const;
 export const ELEMENT_CONFIG = { duration: 2, burnRatio: .15, iceSlow: .25, chainRadius: 120, chainCount: 2, chainRatio: .3, thermalRadius: 60, thermalRatio: .4, thermalSlow: .15, thermalInterval: .5 } as const;
-export const DIRECTOR = { eliteTimes: [STAGE_TIMES.firstElite, STAGE_TIMES.pressure], eventTimes: [STAGE_TIMES.armor, STAGE_TIMES.chargeEvent], bossChargeWarning: 1, blastWarning: 1.2, chargeWarning: .8, summonInterval: 20, summonCount: 10, summonCap: 30 } as const;
+export const DIRECTOR = { eliteTimes: [STAGE_TIMES.firstElite, STAGE_TIMES.secondElite], eventTimes: [STAGE_TIMES.firstEvent, STAGE_TIMES.secondEvent], bossChargeWarning: 1, blastWarning: 1.2, chargeWarning: .8, summonInterval: 20, summonCount: 10, summonCap: 30 } as const;
 export const ENEMY_BEHAVIOR = {
   chargeSpeed: 430, chargeDuration: .7, chargeRest: 2.2, chargeRange: 420,
   rangedRange: 350, rangedWarning: .7, rangedRest: 2.5, rangedShotSpeed: 230,

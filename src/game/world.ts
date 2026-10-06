@@ -3,6 +3,7 @@ import { collectDeaths, damageEnemy, damagePlayer, resolveResult, updateStatuses
 import { Director, updateEnemies } from './director';
 import { Progression } from './progression';
 import { SeededRandom } from './random';
+import { stageScale } from './scaling';
 import { activateSkill, activateUltimate, canAutoActivate, updateEffects, updateProjectiles, updateSkills, updateUltimate } from './skills';
 import { blocked, distanceSq, makeObstacles, moveBody, SpatialGrid } from './spatial';
 import type { CharacterId, Effect, Enemy, EnemyKind, GameState, Input, Projectile, SkillId, Vec, WorldAccess } from './types';
@@ -38,12 +39,13 @@ export class GameWorld implements WorldAccess {
       kills: 0, level: 1, xp: 0, xpRequired: 10, pendingUpgrades: 0, choices: [], rerolls: CONFIG.maxRerolls,
       result: null, event: null, damageBySkill: {}, phase: STAGES[0].name, paused: false,
       bossSpawned: false, bossDefeated: false, eliteKills: 0, warning: null, viewport: { x: 1000, y: 700 }, autoSkill: false,
+      stage: 1, gift: [],
     };
     this.progression = new Progression(this.state, choicesRandom.next);
   }
   update(dt: number, input: Input = { x: 0, y: 0, skill: false, ultimate: false }): void {
     if (!Number.isFinite(dt) || dt <= 0) return;
-    if (this.state.paused || this.state.pendingUpgrades || this.state.result) {
+    if (this.state.paused || this.state.pendingUpgrades || this.state.result || this.state.gift.length) {
       this.accumulator = 0; this.queuedSkill = false; this.queuedUltimate = false;
       this.skillHeld = input.skill; this.ultimateHeld = input.ultimate;
       return;
@@ -66,6 +68,11 @@ export class GameWorld implements WorldAccess {
     if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) this.state.viewport = { x: width, y: height };
   }
   chooseUpgrade(optionId: string): boolean { return this.progression.choose(optionId); }
+  chooseGift(optionId: string): boolean {
+    if (!this.progression.chooseGift(optionId)) return false;
+    this.beginNextStage();
+    return true;
+  }
   reroll(): boolean { return this.progression.reroll(); }
   random(): number { return this.simulationRandom.next(); }
   nextId(): number { return this.sequence++; }
@@ -80,9 +87,12 @@ export class GameWorld implements WorldAccess {
     if (!kind.startsWith('elite') && kind !== 'boss' && s.enemies.filter(e => !e.kind.startsWith('elite') && e.kind !== 'boss' && e.hp > 0).length >= CONFIG.enemyLimit) return null;
     if (!position) position = this.spawnPoint(config.radius) ?? undefined;
     if (!position || blocked(position, config.radius, s.obstacles)) return null;
+    const scale = stageScale(s.stage);
+    const hpScale = kind.startsWith('elite') || kind === 'boss' ? scale.eliteHp : scale.hp;
+    const hp = config.hp * hpScale;
     const enemy: Enemy = {
-      id: this.nextId(), x: position.x, y: position.y, kind, hp: config.hp, maxHp: config.hp,
-      radius: config.radius, speed: config.speed, damage: config.damage, state: 'chase', timer: kind === 'boss' ? 2 : 1,
+      id: this.nextId(), x: position.x, y: position.y, kind, hp, maxHp: hp,
+      radius: config.radius, speed: config.speed * scale.speed, damage: config.damage * scale.damage, state: 'chase', timer: kind === 'boss' ? 2 : 1,
       target: { x: s.player.x, y: s.player.y }, attackId: this.nextId(), slowTime: 0, slowFactor: 0,
       burn: null, thermal: new Map(), lastThermal: new Map(), orbitHits: new Map(), hitPlayer: false,
       summoned, eventEnemy, bossPattern: 0, summonTimer: 20, avoidSide: this.random() < .5 ? -1 : 1,
@@ -176,8 +186,27 @@ export class GameWorld implements WorldAccess {
     collectDeaths(this);
     resolveResult(this);
     if (s.result) return;
+    if (s.bossDefeated && !s.gift.length) { this.beginStageClear(); return; }
     this.updatePickups(dt);
     this.grid.rebuild(s.enemies);
+  }
+  /** 击破首领：清场、回到地图中心并获得短暂无敌，随后弹出大礼包三选一。 */
+  private beginStageClear(): void {
+    const s = this.state, p = s.player;
+    s.enemies.length = 0; s.projectiles.length = 0; s.effects.length = 0; s.event = null;
+    p.x = CONFIG.mapSize / 2; p.y = CONFIG.mapSize / 2; p.shield = 0; p.shieldTime = 0;
+    p.invulnerable = Math.max(p.invulnerable, 1.5);
+    this.grid.rebuild(s.enemies);
+    s.gift = this.progression.rollGift();
+  }
+  /** 选择大礼包后推进到下一关，重置时间轴与首领状态，保留等级、技能与属性成长。 */
+  private beginNextStage(): void {
+    const s = this.state, p = s.player;
+    s.stage++;
+    s.time = 0; s.bossSpawned = false; s.bossDefeated = false; s.warning = null;
+    s.projectiles.length = 0; s.effects.length = 0;
+    this.director.reset();
+    p.invulnerable = Math.max(p.invulnerable, 1);
   }
   private updatePickups(dt: number): void {
     const s = this.state, p = s.player;

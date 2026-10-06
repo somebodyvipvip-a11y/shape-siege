@@ -1,5 +1,6 @@
 import { CONFIG, DIRECTOR, ENEMY_BEHAVIOR as AI, stageAt } from './config';
 import { navigationDirection, prepareNavigation } from './navigation';
+import { stageScale } from './scaling';
 import { blocked, direction, distanceSq } from './spatial';
 import type { Enemy, Vec, WorldAccess } from './types';
 
@@ -7,6 +8,8 @@ export class Director {
   private spawnTimer = 0;
   private elites = new Set<number>();
   private events = new Set<number>();
+  /** 进入下一关时重置时间轴锚点，让精英与事件在新一关重新触发。 */
+  reset(): void { this.spawnTimer = 0; this.elites.clear(); this.events.clear(); }
   update(world: WorldAccess, dt: number): void {
     const s = world.state;
     const stage = stageAt(s.time);
@@ -28,7 +31,7 @@ export class Director {
     this.spawnTimer -= dt;
     if (this.spawnTimer > 0) return;
     const relief = DIRECTOR.eliteTimes.some(t => s.time >= t && s.time < t + 15) || (stage.periodicRelief && s.time % 50 > 42);
-    this.spawnTimer = relief ? .8 : Math.max(.14, .7 - s.time / 800);
+    this.spawnTimer = (relief ? .8 : Math.max(.14, .7 - s.time / 800)) * stageScale(s.stage).spawn;
     for (let i = 0; i < stage.batch; i++) world.spawnEnemy(stage.enemies[Math.floor(world.random() * stage.enemies.length)]);
   }
   private openEvent(world: WorldAccess, kind: 'elite' | 'charge'): void {
