@@ -1583,6 +1583,32 @@ small {
   color: #667f9f
 }
 
+.upgrade-kind i {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-style: normal
+}
+
+.rare-tag {
+  font-style: normal;
+  font-size: 8px;
+  letter-spacing: .5px;
+  color: #0b1020;
+  background: #ffd36a;
+  border-radius: 999px;
+  padding: 1px 5px
+}
+
+.upgrade-card.rare {
+  border-color: #ffd36a;
+  background: linear-gradient(145deg,#2b3a55,#182741)
+}
+
+.upgrade-card.rare:hover {
+  border-color: #ffe9b0
+}
+
 .upgrade-card>.geo-icon {
   width: 60px;
   height: 60px;

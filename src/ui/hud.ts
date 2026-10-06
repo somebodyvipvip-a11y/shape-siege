@@ -38,7 +38,7 @@ export class HUD {
     const slotKey = JSON.stringify(p.skills.map(skill => [skill.id, skill.level, skill.elements, skill.enhanced]));
     if (slotKey !== this.slotKey) {
       this.slotKey = slotKey;
-      this.root.querySelector('#skill-slots')!.innerHTML = p.skills.map(skill => `<div class="skill-slot" title="${escapeHTML(SKILLS[skill.id].name)} · ${skill.level} 级${skill.enhanced ? ' · 行为强化' : ''}">${geometry(skill.id)}<span>${SKILLS[skill.id].name}</span><b>${skill.level}</b><small>${skill.elements.map(element => ELEMENT_NAMES[element]).join('＋')}</small></div>`).join('') + Array.from({ length: 4 - p.skills.length }, () => '<div class="skill-slot empty"><span>待构筑</span></div>').join('');
+      this.root.querySelector('#skill-slots')!.innerHTML = p.skills.map(skill => `<div class="skill-slot" title="${escapeHTML(SKILLS[skill.id].name)} · ${skill.level} 级${skill.enhanced ? ' · 行为强化' : ''}">${geometry(skill.id)}<span>${SKILLS[skill.id].name}</span><b>${skill.level}</b><small>${skill.elements.map(element => ELEMENT_NAMES[element]).join('＋')}</small></div>`).join('') + Array.from({ length: Math.max(0, state.slots - p.skills.length) }, () => '<div class="skill-slot empty"><span>待构筑</span></div>').join('');
     }
     const skill = this.root.querySelector<HTMLButtonElement>('#skill-button')!, ultimate = this.root.querySelector<HTMLButtonElement>('#ultimate-button')!;
     const inactive = state.paused || state.pendingUpgrades > 0 || state.reviveTimer > 0 || !!state.result;

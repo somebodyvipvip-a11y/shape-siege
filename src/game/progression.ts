@@ -20,9 +20,9 @@ export class Progression {
     if (!this.state.choices.length) this.roll();
   }
   candidates(): UpgradeChoice[] {
-    const p = this.state.player;
+    const s = this.state, p = s.player;
     const pool: UpgradeChoice[] = [];
-    if (p.skills.length < CONFIG.autoSlots) {
+    if (p.skills.length < s.slots) {
       for (const id of GENERIC_SKILLS) if (!p.skills.some(s => s.id === id)) {
         pool.push({ id: `new:${id}`, kind: 'new', skillId: id, name: SKILLS[id].name, description: `获得新技能：基础伤害 ${SKILLS[id].damage}，冷却 ${SKILLS[id].cooldown} 秒` });
       }
@@ -33,15 +33,15 @@ export class Progression {
       if (skill.level >= 3 && skill.elements.length === 0) {
         for (const element of ['fire', 'ice', 'lightning'] as Element[]) {
           const detail = element === 'fire' ? '附带持续 2 秒、每秒直接伤害 15% 的燃烧' : element === 'ice' ? '命中减速 25%，持续 2 秒' : '向 120 范围内最多 2 个目标传导 30% 伤害';
-          pool.push({ id: `element:${skill.id}:${element}`, kind: 'element', skillId: skill.id, element, name: `${label}·${ELEMENT_NAMES[element]}`, description: detail });
+          pool.push({ id: `element:${skill.id}:${element}`, kind: 'element', rarity: 'rare', skillId: skill.id, element, name: `${label}·${ELEMENT_NAMES[element]}`, description: detail });
         }
       }
-      if (skill.level >= 5 && !skill.enhanced) pool.push({ id: `behavior:${skill.id}`, kind: 'behavior', skillId: skill.id, name: `${label}行为强化`, description: SKILLS[skill.id].behavior });
+      if (skill.level >= 5 && !skill.enhanced) pool.push({ id: `behavior:${skill.id}`, kind: 'behavior', rarity: 'rare', skillId: skill.id, name: `${label}行为强化`, description: SKILLS[skill.id].behavior });
       if (skill.level >= 7 && skill.elements.length === 1) {
         for (const element of ['fire', 'ice', 'lightning'] as Element[]) if (element !== skill.elements[0]) {
           const pair = [...skill.elements, element];
           const name = pair.includes('fire') && pair.includes('ice') ? '热冲击' : pair.includes('fire') ? '电燃' : '冰链';
-          pool.push({ id: `fusion:${skill.id}:${element}`, kind: 'fusion', skillId: skill.id, element, name: `${label}·${name}`, description: `${ELEMENT_NAMES[skill.elements[0]]}＋${ELEMENT_NAMES[element]} 融合，替代基础元素效果` });
+          pool.push({ id: `fusion:${skill.id}:${element}`, kind: 'fusion', rarity: 'rare', skillId: skill.id, element, name: `${label}·${name}`, description: `${ELEMENT_NAMES[skill.elements[0]]}＋${ELEMENT_NAMES[element]} 融合，替代基础元素效果` });
         }
       }
     }
@@ -55,15 +55,30 @@ export class Progression {
     if (p.armor < CONFIG.armorCap) pool.push({ id: 'stat:armor', kind: 'stat', name: '护甲强化', description: `受到的所有伤害减少 2，最高 ${CONFIG.armorCap}` });
     if (p.hp < p.maxHp) pool.push({ id: 'stat:heal', kind: 'stat', name: '生命恢复', description: '恢复最大生命的 15%' });
     pool.push({ id: 'stat:damage', kind: 'stat', name: '伤害强化', description: '所有直接伤害增加 3%' });
+    // 幸运 ≥ 1 解锁专属高级卡；权重随幸运提升（方案第八节），是后续幸运的正反馈来源。
+    if (p.luck >= 1) {
+      if (p.skills.some(skill => skill.level < CONFIG.skillMaxLevel)) pool.push({ id: 'rare:skillBoost', kind: 'stat', rarity: 'rare', name: '技能跃升·极限', description: '随机一个已拥有技能提升 2 级' });
+      if (s.slots < CONFIG.slotCap) pool.push({ id: 'rare:slot', kind: 'stat', rarity: 'rare', name: '额外槽位', description: `技能槽增加 1 个，本局最高 ${CONFIG.slotCap} 个` });
+      if (p.lifesteal < CONFIG.lifestealCap) pool.push({ id: 'rare:lifesteal', kind: 'stat', rarity: 'rare', name: '生命汲取', description: `每次击杀回复 ${(CONFIG.lifestealStep * 100).toFixed(1)}% 最大生命，最高 ${Math.round(CONFIG.lifestealCap * 100)}%` });
+      if (p.luck < CONFIG.luckCap) pool.push({ id: 'rare:luck', kind: 'stat', rarity: 'rare', name: '幸运护符', description: '幸运 +1，提高稀有卡出现率、重抽上限与掉落收益' });
+    }
     return pool;
   }
-  roll(): void {
-    const pool = this.candidates();
-    const choices: UpgradeChoice[] = [];
-    while (choices.length < 3 && pool.length) {
-      const index = Math.floor(this.random() * pool.length);
-      choices.push(pool.splice(index, 1)[0]);
+  /** 加权抽取：稀有卡权重 ×(1 + 0.25·幸运)，每次抽取消耗 1 个升级流随机数。 */
+  private pick(pool: UpgradeChoice[], count: number): UpgradeChoice[] {
+    const remaining = [...pool], picks: UpgradeChoice[] = [];
+    const luck = this.state.player.luck;
+    while (picks.length < count && remaining.length) {
+      const weights = remaining.map(choice => choice.rarity === 'rare' ? 1 + CONFIG.rareWeightLuck * luck : 1);
+      let roll = this.random() * weights.reduce((sum, weight) => sum + weight, 0);
+      let index = remaining.length - 1;
+      for (let i = 0; i < weights.length; i++) if ((roll -= weights[i]) <= 0) { index = i; break; }
+      picks.push(remaining.splice(index, 1)[0]);
     }
+    return picks;
+  }
+  roll(): void {
+    const choices = this.pick(this.candidates(), 3);
     while (choices.length < 3) choices.push({ id: `stat:damage:${choices.length}`, kind: 'stat', name: '伤害强化', description: '所有直接伤害增加 3%' });
     this.state.choices = choices;
   }
@@ -73,7 +88,7 @@ export class Progression {
     if (s.result || !s.pendingUpgrades || !choice) return false;
     const skill = p.skills.find(sk => sk.id === choice.skillId);
     if (choice.kind === 'new') {
-      if (p.skills.length >= CONFIG.autoSlots || !choice.skillId) return false;
+      if (p.skills.length >= s.slots || !choice.skillId) return false;
       p.skills.push({ id: choice.skillId, level: 1, cooldown: 0, elements: [], enhanced: false });
     } else if (choice.kind === 'level' && skill) skill.level++;
     else if ((choice.kind === 'element' || choice.kind === 'fusion') && skill && choice.element) skill.elements.push(choice.element);
@@ -89,6 +104,15 @@ export class Progression {
     else if (choice.id === 'stat:dodge') p.dodge = Math.min(CONFIG.dodgeCap, p.dodge + .05);
     else if (choice.id === 'stat:armor') p.armor = Math.min(CONFIG.armorCap, p.armor + 2);
     else if (choice.id === 'stat:heal') p.hp = Math.min(p.maxHp, p.hp + p.maxHp * .15);
+    else if (choice.id === 'rare:skillBoost') {
+      const upgradable = p.skills.filter(skill => skill.level < CONFIG.skillMaxLevel);
+      if (upgradable.length) {
+        const target = upgradable[Math.floor(this.random() * upgradable.length)];
+        target.level = Math.min(CONFIG.skillMaxLevel, target.level + 2);
+      }
+    } else if (choice.id === 'rare:slot') s.slots = Math.min(CONFIG.slotCap, s.slots + 1);
+    else if (choice.id === 'rare:lifesteal') p.lifesteal = Math.min(CONFIG.lifestealCap, p.lifesteal + CONFIG.lifestealStep);
+    else if (choice.id === 'rare:luck') this.addLuck(1);
     else p.damageBonus += .03;
     s.pendingUpgrades--;
     s.choices = [];
@@ -101,11 +125,19 @@ export class Progression {
     this.roll();
     return true;
   }
+  /** 幸运提升：重抽上限随之提高，按差额把本局重抽次数补足（方案第七节）。 */
+  addLuck(amount: number): void {
+    const s = this.state;
+    const before = rerollCap(s.player.luck);
+    s.player.luck = Math.min(CONFIG.luckCap, s.player.luck + Math.max(0, amount));
+    s.rerolls += Math.max(0, rerollCap(s.player.luck) - before);
+  }
   /** 每关通关的大礼包奖池，独立于升级卡；沿用升级随机流，保持与战斗随机独立。 */
   giftCandidates(): UpgradeChoice[] {
     const p = this.state.player, pool: UpgradeChoice[] = [];
     pool.push({ id: 'gift:heal', kind: 'stat', name: '满血强化', description: '生命完全恢复，且生命上限增加 20' });
     if (this.state.lives < CONFIG.livesCap) pool.push({ id: 'gift:life', kind: 'stat', name: '生命 +1', description: `剩余命数增加 1，最高 ${CONFIG.livesCap} 条` });
+    if (p.luck < CONFIG.luckCap) pool.push({ id: 'gift:luck', kind: 'stat', rarity: 'rare', name: '幸运 +1', description: '幸运提升，提高稀有卡出现率、重抽上限与掉落收益' });
     pool.push({ id: 'gift:damage', kind: 'stat', name: '伤害增幅', description: '所有直接伤害增加 12%' });
     if (p.cooldownReduction < CONFIG.cooldownCap) pool.push({ id: 'gift:cooldown', kind: 'stat', name: '冷却增幅', description: '冷却缩减增加 8%' });
     pool.push({ id: 'gift:pickup', kind: 'stat', name: '拾取增幅', description: '经验吸取范围增加 50' });
@@ -118,9 +150,7 @@ export class Progression {
     return pool;
   }
   rollGift(): UpgradeChoice[] {
-    const pool = this.giftCandidates(), choices: UpgradeChoice[] = [];
-    while (choices.length < 3 && pool.length) choices.push(pool.splice(Math.floor(this.random() * pool.length), 1)[0]);
-    return choices;
+    return this.pick(this.giftCandidates(), 3);
   }
   chooseGift(id: string): boolean {
     const s = this.state, p = s.player;
@@ -128,6 +158,7 @@ export class Progression {
     if (s.result || !choice || !s.gift.length) return false;
     if (choice.id === 'gift:heal') { p.maxHp += 20; p.hp = p.maxHp; }
     else if (choice.id === 'gift:life') s.lives = Math.min(CONFIG.livesCap, s.lives + 1);
+    else if (choice.id === 'gift:luck') this.addLuck(1);
     else if (choice.id === 'gift:damage') p.damageBonus += .12;
     else if (choice.id === 'gift:cooldown') p.cooldownReduction = Math.min(CONFIG.cooldownCap, p.cooldownReduction + .08);
     else if (choice.id === 'gift:pickup') p.pickupRadius += 50;
@@ -149,4 +180,8 @@ export class Progression {
 export function skillDamage(state: GameState, id: SkillId): number {
   const skill = state.player.skills.find(s => s.id === id);
   return SKILLS[id].damage * (1 + CONFIG.baseDamageGrowth * ((skill?.level ?? 1) - 1)) * (1 + state.player.damageBonus);
+}
+/** 重抽上限随幸运提升：maxRerolls + floor(luck / 2)。 */
+export function rerollCap(luck: number): number {
+  return CONFIG.maxRerolls + Math.floor(Math.max(0, luck) / CONFIG.luckPerReroll);
 }

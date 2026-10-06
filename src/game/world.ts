@@ -32,7 +32,7 @@ export class GameWorld implements WorldAccess {
         hp: character.hp, maxHp: character.hp, speed: character.speed, shield: 0, shieldTime: 0,
         invulnerable: 0, energy: 0, skillCooldown: 0, skillDuration: 0, ultimateDuration: 0, ultimateTick: 0,
         lastDirection: { x: 0, y: -1 }, speedBonus: 0, cooldownReduction: 0, damageBonus: 0, pickupRadius: CONFIG.xpRadius,
-        critChance: 0, critMultiplier: CONFIG.critMultBase, dodge: 0, armor: 0, luck: 0,
+        critChance: 0, critMultiplier: CONFIG.critMultBase, dodge: 0, armor: 0, luck: 0, lifesteal: 0,
         dashTime: 0, dashRemaining: 0, dashDirection: { x: 0, y: -1 }, skills: [{ id: character.base, level: 1, cooldown: 0, elements: [], enhanced: false }],
       },
       enemies: [], projectiles: [], pickups: [], effects: [], obstacles: makeObstacles(), time: 0,
@@ -40,7 +40,7 @@ export class GameWorld implements WorldAccess {
       result: null, event: null, damageBySkill: {}, phase: STAGES[0].name, paused: false,
       bossSpawned: false, bossDefeated: false, eliteKills: 0, warning: null, viewport: { x: 1000, y: 700 }, autoSkill: false,
       stage: 1, gift: [],
-      lives: CONFIG.lives, reviveTimer: 0,
+      lives: CONFIG.lives, reviveTimer: 0, slots: CONFIG.autoSlots,
     };
     this.progression = new Progression(this.state, choicesRandom.next);
   }

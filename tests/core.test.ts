@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIG, DIRECTOR, stageAt } from '../src/game/config';
+import { rerollCap } from '../src/game/progression';
 import { Director, updateEnemies } from '../src/game/director';
 import { clearPath } from '../src/game/navigation';
 import { activateSkill, activateUltimate, updateEffects, updateProjectiles, updateSkills, updateUltimate } from '../src/game/skills';
@@ -619,5 +620,71 @@ describe('暴击、闪避与护甲', () => {
     p.critChance = CONFIG.critCap; p.armor = CONFIG.armorCap;
     const capped = world.debug.candidates();
     expect(capped.some(c => c.id === 'stat:crit' || c.id === 'stat:armor')).toBe(false);
+  });
+});
+describe('幸运与稀有卡', () => {
+  it('重抽上限 = maxRerolls + floor(luck / 2)，幸运提升时补足差额', () => {
+    expect(rerollCap(0)).toBe(CONFIG.maxRerolls);
+    expect(rerollCap(1)).toBe(CONFIG.maxRerolls);
+    expect(rerollCap(5)).toBe(CONFIG.maxRerolls + 2);
+    const world = new GameWorld('circle');
+    const gift = (): void => { world.state.gift = [{ id: 'gift:luck', kind: 'stat', name: '幸运 +1', description: '' }]; world.chooseGift('gift:luck'); };
+    gift();
+    expect(world.state.player.luck).toBe(1);
+    expect(world.state.rerolls).toBe(CONFIG.maxRerolls);
+    gift();
+    expect(world.state.player.luck).toBe(2);
+    expect(world.state.rerolls).toBe(CONFIG.maxRerolls + 1);
+  });
+  it('幸运 ≥ 1 才解锁专属高级卡，卡池标记稀有度', () => {
+    const world = new GameWorld('circle');
+    expect(world.debug.candidates().some(c => c.id.startsWith('rare:'))).toBe(false);
+    world.state.player.luck = 1;
+    const pool = world.debug.candidates();
+    expect(pool.some(c => c.id === 'rare:skillBoost' && c.rarity === 'rare')).toBe(true);
+    expect(pool.some(c => c.id === 'rare:slot')).toBe(true);
+    expect(pool.some(c => c.id === 'rare:lifesteal')).toBe(true);
+    expect(pool.some(c => c.id === 'rare:luck')).toBe(true);
+  });
+  it('幸运提升稀有卡抽取权重（抽卡统计）', () => {
+    const sample = (luck: number): number => {
+      const world = new GameWorld('circle', 42);
+      const skill = world.state.player.skills[0];
+      skill.level = 7; skill.elements = ['fire'];
+      world.state.player.luck = luck;
+      let rare = 0;
+      for (let i = 0; i < 400; i++) {
+        world.state.pendingUpgrades = 1; world.state.choices = [];
+        world.debug.addXp(0);
+        rare += world.state.choices.filter(choice => choice.rarity === 'rare').length;
+      }
+      return rare;
+    };
+    expect(sample(10)).toBeGreaterThan(sample(0));
+  });
+  it('专属高级卡生效：额外槽位、生命汲取与技能跃升', () => {
+    const world = new GameWorld('circle');
+    const p = world.state.player;
+    p.luck = 1;
+    const pick = (id: string): void => {
+      world.state.pendingUpgrades = 1;
+      world.state.choices = [{ id, kind: 'stat', rarity: 'rare', name: id, description: '' }];
+      expect(world.chooseUpgrade(id)).toBe(true);
+    };
+    pick('rare:slot');
+    expect(world.state.slots).toBe(CONFIG.autoSlots + 1);
+    for (const id of ['homing', 'lightning', 'mine'] as SkillId[]) addSkill(world, id);
+    expect(world.debug.candidates().some(c => c.kind === 'new')).toBe(true);
+    pick('rare:lifesteal');
+    expect(p.lifesteal).toBeCloseTo(CONFIG.lifestealStep);
+    p.hp = 1;
+    const enemy = dummy(world);
+    enemy.hp = 0;
+    world.debug.resolveResult();
+    expect(p.hp).toBeCloseTo(1 + p.maxHp * CONFIG.lifestealStep);
+    const totalLevel = (): number => p.skills.reduce((sum, item) => sum + item.level, 0);
+    const before = totalLevel();
+    pick('rare:skillBoost');
+    expect(totalLevel()).toBe(before + 2);
   });
 });

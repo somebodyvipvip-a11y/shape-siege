@@ -11,7 +11,7 @@ export interface Player extends Vec {
   shield: number; shieldTime: number; invulnerable: number; energy: number;
   skillCooldown: number; skillDuration: number; ultimateDuration: number; ultimateTick: number;
   lastDirection: Vec; speedBonus: number; cooldownReduction: number; damageBonus: number; pickupRadius: number;
-  critChance: number; critMultiplier: number; dodge: number; armor: number; luck: number;
+  critChance: number; critMultiplier: number; dodge: number; armor: number; luck: number; lifesteal: number;
   dashTime: number; dashRemaining: number; dashDirection: Vec; skills: SkillState[];
 }
 export interface Burn { dps: number; remaining: number; skillId: SkillId }
@@ -36,6 +36,7 @@ export interface Effect extends Vec {
 }
 export interface UpgradeChoice {
   id: string; name: string; description: string; kind: 'new' | 'level' | 'element' | 'behavior' | 'fusion' | 'stat';
+  rarity?: 'common' | 'rare';
   skillId?: SkillId; element?: Element; currentLevel?: number;
 }
 export interface MapEvent extends Vec { kind: 'elite' | 'charge'; remaining: number; progress: number; enemyId: number | null }
@@ -46,7 +47,7 @@ export interface GameState {
   choices: UpgradeChoice[]; rerolls: number; result: GameResult; event: MapEvent | null;
   damageBySkill: Record<string, number>; phase: string; paused: boolean; bossSpawned: boolean; bossDefeated: boolean;
   eliteKills: number; warning: string | null; viewport: Vec; autoSkill: boolean; stage: number; gift: UpgradeChoice[];
-  lives: number; reviveTimer: number;
+  lives: number; reviveTimer: number; slots: number;
 }
 /** Simulation modules share this interface, never browser or rendering objects. */
 export interface WorldAccess {

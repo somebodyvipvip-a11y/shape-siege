@@ -35,6 +35,7 @@ export function attributeRows(player: Player): { label: string; value: string }[
     { label: '暴击伤害', value: `${player.critMultiplier.toFixed(1)}×` },
     { label: '闪避', value: percent(player.dodge) },
     { label: '护甲', value: `${Math.round(player.armor)}` },
+    { label: '幸运', value: `${Math.round(player.luck)}` },
   ];
 }
 export function lifeRow(player: Player): { label: string; value: string } {

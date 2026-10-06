@@ -83,6 +83,8 @@ export function collectDeaths(world: WorldAccess): void {
     s.kills++;
     const config = ENEMIES[enemy.kind];
     s.player.energy = Math.min(100, s.player.energy + config.energy);
+    // 生命汲取（稀有卡）：仅在存活时按击杀回复，避免复活倒计时期间被治疗打断。
+    if (s.player.lifesteal > 0 && s.player.hp > 0) s.player.hp = Math.min(s.player.maxHp, s.player.hp + s.player.maxHp * s.player.lifesteal);
     if (enemy.kind === 'boss') s.bossDefeated = true;
     else {
       if (enemy.kind.startsWith('elite') && !enemy.eventEnemy) s.eliteKills++;
