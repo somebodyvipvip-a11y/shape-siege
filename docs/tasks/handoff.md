@@ -1,12 +1,12 @@
 # Shape Siege · 当前交接文档
 
-更新日期：2026-10-06。当前产品版本以根目录 `VERSION` 为唯一来源，本轮发布版本为 0.12.1；部署核验完成后更新下方发布记录。旧交接内容保留在 Git 历史中。
+更新日期：2026-10-06。当前产品版本以根目录 `VERSION` 为唯一来源，本地及已验证线上版本为 0.12.1。旧交接内容保留在 Git 历史中。
 
 ## 当前状态与用户要求
 
 原创几何风格单人网页生存游戏，支持桌面和手机。每关 5 分钟，4:00 出现首领，击败后选礼包并进入下一关，保留构筑与同局地形。
 
-用户已长期授权每次大更新完成验证后自动推送和更新 Pages，无需再次询问；明确要求先本地测试或暂不发布时以当次指令为准。规则写入 AGENTS.md。本轮将 0.11.0 亡灵爆炸规则与 0.12.0 首次版本公告一起发布为 0.12.1。后续完成修改必须同步 CHANGELOG 与本文件，不把脚本通关率称为真人胜率，不把浏览器尺寸验证称为手机真机验收。
+用户已长期授权每次大更新完成验证后自动推送和更新 Pages，无需再次询问；明确要求先本地测试或暂不发布时以当次指令为准。规则写入 AGENTS.md。本轮已将 0.11.0 亡灵爆炸规则与 0.12.0 首次版本公告一起发布为 0.12.1，部署和线上版本均核验成功。后续完成修改必须同步 CHANGELOG 与本文件，不把脚本通关率称为真人胜率，不把浏览器尺寸验证称为手机真机验收。
 
 ## 近期已完成修改
 
@@ -19,7 +19,8 @@
 | 0.10.0 / 7ad36a6 | 开场随机凸多边形岛屿，绘制/碰撞/导航一致，同局跨关保留 | spatial、navigation、world、geometry |
 | 0.10.1 / b983fa7 | 爆炸怪与范围圈在引信期间局部闪烁；减少动态效果关闭闪烁 | geometry、browser-rules 测试 |
 | 0.11.0 / 66873b3 | 爆炸怪低权重、1 点生命、半径 70，死亡后亡灵追踪两秒爆炸 | config、director、combat、types、world、geometry、core 测试 |
-| 0.12.0 / 本轮提交（见 Git 日志） | 首页版本公告，每版首次提醒、已读持久化、主动回看 | storage、app、release-notes、menu、dialog-input、styles、browser-rules 测试 |
+| 0.12.0 / 40c6041 | 首页版本公告，每版首次提醒、已读持久化、主动回看 | storage、app、release-notes、menu、dialog-input、styles、browser-rules 测试 |
+| 0.12.1 / 57bc666 | 固定大更新自动发布规则并上线累计改动 | AGENTS、VERSION、CHANGELOG、handoff |
 
 文件均位于 `src/game/`、`src/ui/`、`src/render/` 或 `tests/`，具体路径见下节。版本对应的完整变化以 `CHANGELOG.md` 为准。
 
@@ -51,9 +52,9 @@
 
 分支为 `main`，仓库 `https://github.com/somebodyvipvip-a11y/shape-siege`，已按此前授权公开；已有 Pages Actions 工作流 `.github/workflows/pages.yml`，推送 main 会触发发布。
 
-上一轮最终发布提交为 `64c7fed`，对应 Actions 运行 `37484336457` 构建与部署成功：<https://github.com/somebodyvipvip-a11y/shape-siege/actions/runs/37484336457>。0.11.0 与本轮 0.12.0 仅本地修改和提交，尚未推送；后续发布按用户最新授权执行。
+已推送发布提交 `57bc666`，对应 Actions 运行 `37490443651` 构建与部署成功：<https://github.com/somebodyvipvip-a11y/shape-siege/actions/runs/37490443651>。包含 0.11.0 与 0.12.0 的全部累计改动。当前发布状态补记为文档提交，不另升产品版本；后续大更新自动推送和发布。
 
-已验证游玩地址：<https://somebodyvipvip-a11y.github.io/shape-siege/>。上一轮 Chrome 页面显示 `v0.10.2` 并正常进入竞技场，控制台无警告或错误；该线上版本尚未包含本次亡灵规则。发布时仍需确认对应工作流与实际页面，不能将“已推送”当作“已上线”。
+已验证游玩地址：<https://somebodyvipvip-a11y.github.io/shape-siege/>。Chrome 线上页面实际显示 `v0.12.1` 并首次展示更新公告；关闭后刷新，公告数量为 0，首页可主动回看，控制台无警告或错误。上线截图 `.superpowers/screenshots/pages-v0.12.1.png`。发布时仍需确认对应工作流与实际页面，不能将“已推送”当作“已上线”。
 
 ## 启动与复跑
 
