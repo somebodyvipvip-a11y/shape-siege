@@ -534,6 +534,44 @@ describe('命数与复活', () => {
   });
 });
 
+describe('掉落平衡', () => {
+  const harvest = (ratio: number, rounds = 1): { heal: number; maxhp: number } => {
+    const world = new GameWorld('circle', 41);
+    const p = world.state.player;
+    p.hp = p.maxHp * ratio;
+    let heal = 0, maxhp = 0;
+    for (let round = 0; round < rounds; round++) {
+      // 出生区（距地图中心 300 内）无遮挡，保证每次刷怪都成功。
+      for (let i = 0; i < 240; i++) world.spawnEnemy('chaser', { x: 1505 + (i % 20) * 10, y: 1600 + round * 20 })!.hp = 0;
+      world.debug.resolveResult();
+      heal += world.state.pickups.filter(d => d.kind === 'heal').length;
+      maxhp += world.state.pickups.filter(d => d.kind === 'maxhp').length;
+      world.state.pickups.length = 0; world.state.enemies.length = 0; world.debug.rebuildGrid();
+    }
+    return { heal, maxhp };
+  };
+  it('满血不产出补血，生命上限以低概率持续产出', () => {
+    const full = harvest(1, 5);
+    expect(full.heal).toBe(0);
+    expect(full.maxhp).toBeGreaterThan(0);
+    expect(full.maxhp).toBeLessThan(30);
+  });
+  it('受伤越重补血掉率越高，产出落在设计区间内', () => {
+    const wounded = harvest(.05);
+    // 240 次击杀、血量 5%：补血期望 ≈ 0.078 × 240 ≈ 19。
+    expect(wounded.heal).toBeGreaterThan(5);
+    expect(wounded.heal).toBeLessThan(40);
+  });
+  it('拾取生命上限同时提升最大生命与当前生命', () => {
+    const world = new GameWorld('circle', 42);
+    const p = world.state.player;
+    p.hp = 40; p.maxHp = 100;
+    world.state.pickups.push({ id: 1, x: p.x, y: p.y, kind: 'maxhp', value: 7, attracted: true });
+    world.update(CONFIG.step, idle);
+    expect(p.maxHp).toBe(107); expect(p.hp).toBe(47);
+  });
+});
+
 describe('暴击、闪避与护甲', () => {
   it('暴击率 100% 时按暴击倍率放大玩家伤害', () => {
     const world = new GameWorld('circle', 3);

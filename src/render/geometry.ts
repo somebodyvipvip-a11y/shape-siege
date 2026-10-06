@@ -87,8 +87,16 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
     g.lineBetween(e.x - 8, e.y, e.x + 8, e.y); g.lineBetween(e.x, e.y - 8, e.x, e.y + 8);
   }
   for (const drop of state.pickups) {
-    if (!visible(drop, 10)) continue;
-    const xp = drop.kind === 'xp'; g.fillStyle(xp ? PALETTE.xp : 0x63e2c3, .75); g.lineStyle(1, xp ? PALETTE.xp : 0x63e2c3, 1);
+    if (!visible(drop, 12)) continue;
+    // 生命上限：金色偏心菱形，区别于补血的十字圆点与经验的多边形。
+    if (drop.kind === 'maxhp') {
+      g.fillStyle(PALETTE.gold, .85); g.lineStyle(1, PALETTE.gold, 1);
+      polygon(g, drop.x, drop.y, 10, 4, Math.PI / 4);
+      g.fillStyle(0x0b1020, .85); g.fillCircle(drop.x + 3, drop.y + 3, 2.6);
+      continue;
+    }
+    const xp = drop.kind === 'xp', color = xp ? PALETTE.xp : 0x63e2c3;
+    g.fillStyle(color, .75); g.lineStyle(1, color, 1);
     if (xp) polygon(g, drop.x, drop.y, Math.min(9, 4 + Math.sqrt(drop.value)), 4);
     else { g.fillCircle(drop.x, drop.y, 9); g.lineStyle(2, 0x0b1020, 1); g.lineBetween(drop.x - 4, drop.y, drop.x + 4, drop.y); g.lineBetween(drop.x, drop.y - 4, drop.x, drop.y + 4); }
   }

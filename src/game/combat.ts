@@ -94,11 +94,20 @@ export function collectDeaths(world: WorldAccess): void {
         const merge = s.pickups.find(p => p.kind === 'xp');
         if (merge) merge.value += xp;
       }
-      if (world.random() < .025 && s.pickups.length < CONFIG.pickupLimit) s.pickups.push({ id: world.nextId(), x: enemy.x, y: enemy.y, kind: 'heal', value: 15, attracted: false });
+      rollDrops(world, enemy.x, enemy.y);
     }
     if (s.event?.enemyId === enemy.id) { world.rewardChoice(); s.event = null; }
   }
   s.enemies.length = write;
+}
+/** 掉落平衡：补血＝续航（受伤越重掉率越高，满血不产出），生命上限＝构筑（低概率永久收益）。 */
+function rollDrops(world: WorldAccess, x: number, y: number): void {
+  const s = world.state, p = s.player;
+  const luck = 1 + .08 * p.luck;
+  if (p.hp < p.maxHp && world.random() < (.04 + .04 * (1 - p.hp / p.maxHp)) * luck && s.pickups.length < CONFIG.pickupLimit)
+    s.pickups.push({ id: world.nextId(), x, y, kind: 'heal', value: Math.max(10, p.maxHp * .12), attracted: false });
+  if (world.random() < (.009 + .0015 * p.luck) * luck && s.pickups.length < CONFIG.pickupLimit)
+    s.pickups.push({ id: world.nextId(), x, y, kind: 'maxhp', value: 6 + s.stage, attracted: false });
 }
 export function resolveResult(world: WorldAccess): void {
   const s = world.state;

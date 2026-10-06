@@ -11,7 +11,7 @@ export interface Player extends Vec {
   shield: number; shieldTime: number; invulnerable: number; energy: number;
   skillCooldown: number; skillDuration: number; ultimateDuration: number; ultimateTick: number;
   lastDirection: Vec; speedBonus: number; cooldownReduction: number; damageBonus: number; pickupRadius: number;
-  critChance: number; critMultiplier: number; dodge: number; armor: number;
+  critChance: number; critMultiplier: number; dodge: number; armor: number; luck: number;
   dashTime: number; dashRemaining: number; dashDirection: Vec; skills: SkillState[];
 }
 export interface Burn { dps: number; remaining: number; skillId: SkillId }
@@ -28,7 +28,7 @@ export interface Projectile extends Vec {
   range: number; traveled: number; targetId: number | null; pierce: number; hit: Set<number>;
   mode: 'straight' | 'homing' | 'boomerang'; returning: boolean; split: boolean;
 }
-export interface Pickup extends Vec { id: number; kind: 'xp' | 'heal'; value: number; attracted: boolean }
+export interface Pickup extends Vec { id: number; kind: 'xp' | 'heal' | 'maxhp'; value: number; attracted: boolean }
 export interface Effect extends Vec {
   id: number; attackId: number; kind: 'warning' | 'blast' | 'mine' | 'field' | 'dash';
   owner: 'player' | 'enemy'; skillId: SkillId | 'active' | 'ultimate' | 'enemy';
