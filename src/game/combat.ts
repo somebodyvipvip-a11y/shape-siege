@@ -104,8 +104,11 @@ export function resolveResult(world: WorldAccess): void {
   const s = world.state;
   if (s.result) return;
   // 连续闯关：首领被击破时由 GameWorld 推进关卡，不再直接结算胜利；此处只处理失败结局。
-  if (s.player.hp <= 0) s.result = 'death';
-  else if (!s.bossDefeated && s.time >= CONFIG.timeout) s.result = 'timeout';
+  // 生命清零：还有剩余命数则扣 1 条命并进入复活等待，命数耗尽才判定死亡。
+  if (s.player.hp <= 0 && s.reviveTimer <= 0) {
+    if (s.lives > 1) { s.lives--; s.reviveTimer = CONFIG.reviveDelay; }
+    else s.result = 'death';
+  } else if (!s.bossDefeated && s.time >= CONFIG.timeout) s.result = 'timeout';
   if (s.result) {
     s.projectiles.length = 0;
     s.effects.length = 0;

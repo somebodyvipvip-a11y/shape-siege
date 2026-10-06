@@ -398,7 +398,7 @@ describe('导演、地图事件与结算', () => {
   });
   it('玩家死亡优先于超时，首领被击破不再直接结算而交给关卡推进', () => {
     const dead = new GameWorld();
-    dead.state.time = CONFIG.timeout; dead.state.player.hp = 0;
+    dead.state.time = CONFIG.timeout; dead.state.player.hp = 0; dead.state.lives = 1;
     dead.addProjectile({ x: 1800, y: 1600, owner: 'enemy', damage: 30 });
     dead.addEffect({ x: 1600, y: 1600, owner: 'enemy', kind: 'warning', damage: 30, delay: 1 });
     dead.debug.resolveResult();
@@ -414,7 +414,7 @@ describe('导演、地图事件与结算', () => {
   it('同一模拟步伤害结算后判定玩家死亡与首领死亡', () => {
     const world = new GameWorld('square'); const p = world.state.player;
     const boss = world.spawnEnemy('boss', { x: p.x + 30, y: p.y })!;
-    p.hp = 1; boss.hp = 1;
+    p.hp = 1; boss.hp = 1; world.state.lives = 1;
     world.addProjectile({ x: boss.x, y: boss.y, damage: 10, skillId: 'base-square' });
     world.addProjectile({ x: p.x, y: p.y, owner: 'enemy', damage: 10 });
     world.update(CONFIG.step, idle);
@@ -479,6 +479,58 @@ describe('连续闯关与难度缩放', () => {
     expect(stronger.maxHp).toBeCloseTo(30 * 1.35); expect(stronger.damage).toBeCloseTo(10 * 1.15); expect(stronger.speed).toBeCloseTo(90 * 1.04);
     const boss = second.spawnEnemy('boss', { x: 1900, y: 1600 })!;
     expect(boss.maxHp).toBeCloseTo(9000 * 1.5);
+  });
+});
+
+describe('命数与复活', () => {
+  it('首次死亡扣 1 条命并倒计时满血复活，命数耗尽才判定死亡', () => {
+    const world = new GameWorld('circle', 30);
+    const p = world.state.player, start = { x: p.x, y: p.y };
+    expect(world.state.lives).toBe(3);
+    p.hp = 0;
+    world.update(CONFIG.step, idle);
+    expect(world.state.result).toBeNull();
+    expect(world.state.lives).toBe(2);
+    expect(world.state.reviveTimer).toBe(CONFIG.reviveDelay);
+    // 复活等待期间：玩家原地不动、生命保持 0，世界照常推进。
+    steps(world, 90, { ...idle, x: 1 });
+    expect(p.hp).toBe(0);
+    expect(p.x).toBe(start.x);
+    expect(world.state.time).toBeGreaterThan(1);
+    steps(world, 120);
+    expect(world.state.reviveTimer).toBe(0);
+    expect(p.hp).toBe(p.maxHp);
+    expect(p.invulnerable).toBeGreaterThan(0);
+    // 命数耗尽后再次归零直接结算死亡。
+    world.state.lives = 1; p.hp = 0;
+    world.update(CONFIG.step, idle);
+    expect(world.state.result).toBe('death');
+  });
+  it('复活只清除半径内普通敌人，精英与远处敌人保留且不给经验', () => {
+    const world = new GameWorld('circle', 31);
+    const p = world.state.player;
+    const near = world.spawnEnemy('chaser', { x: p.x + 60, y: p.y })!;
+    const far = world.spawnEnemy('chaser', { x: p.x + 500, y: p.y })!;
+    const elite = world.spawnEnemy('elite-tank', { x: p.x + 60, y: p.y + 40 })!;
+    p.hp = 0; world.state.lives = 2; world.state.reviveTimer = CONFIG.step;
+    world.update(CONFIG.step, idle);
+    expect(p.hp).toBe(p.maxHp);
+    expect(p.invulnerable).toBe(CONFIG.reviveInvulnerable);
+    expect(world.state.enemies).not.toContain(near);
+    expect(world.state.enemies).toContain(far);
+    expect(world.state.enemies).toContain(elite);
+    expect(world.state.kills).toBe(0);
+    expect(world.state.pickups).toHaveLength(0);
+  });
+  it('大礼包在命数低于上限时提供「生命 +1」并提升命数', () => {
+    const world = new GameWorld('circle', 32);
+    expect(world.debug.giftCandidates().some(c => c.id === 'gift:life')).toBe(true);
+    world.state.lives = CONFIG.livesCap;
+    expect(world.debug.giftCandidates().some(c => c.id === 'gift:life')).toBe(false);
+    world.state.lives = 2;
+    world.state.gift = [{ id: 'gift:life', kind: 'stat', name: '生命 +1', description: '' }];
+    expect(world.chooseGift('gift:life')).toBe(true);
+    expect(world.state.lives).toBe(3);
   });
 });
 

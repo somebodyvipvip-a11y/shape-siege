@@ -40,6 +40,7 @@ export class GameWorld implements WorldAccess {
       result: null, event: null, damageBySkill: {}, phase: STAGES[0].name, paused: false,
       bossSpawned: false, bossDefeated: false, eliteKills: 0, warning: null, viewport: { x: 1000, y: 700 }, autoSkill: false,
       stage: 1, gift: [],
+      lives: CONFIG.lives, reviveTimer: 0,
     };
     this.progression = new Progression(this.state, choicesRandom.next);
   }
@@ -145,6 +146,7 @@ export class GameWorld implements WorldAccess {
   readonly debug = {
     addXp: (amount: number): void => this.progression.addXp(amount),
     candidates: () => this.progression.candidates(),
+    giftCandidates: () => this.progression.giftCandidates(),
     rebuildGrid: (): void => this.grid.rebuild(this.state.enemies),
     resolveResult: (): void => { collectDeaths(this); resolveResult(this); },
   };
@@ -158,6 +160,12 @@ export class GameWorld implements WorldAccess {
     p.shieldTime = Math.max(0, p.shieldTime - dt);
     if (!p.shieldTime) p.shield = 0;
     p.energy = Math.min(100, p.energy + dt);
+    // 复活倒计时：归零时满血复活；复活当帧即可恢复操作。
+    if (s.reviveTimer > 0) {
+      s.reviveTimer = Math.max(0, s.reviveTimer - dt);
+      if (s.reviveTimer <= 0) this.revivePlayer();
+    }
+    const dead = p.hp <= 0;
     let x = Number.isFinite(input.x) ? Math.max(-1, Math.min(1, input.x)) : 0;
     let y = Number.isFinite(input.y) ? Math.max(-1, Math.min(1, input.y)) : 0;
     const length = Math.hypot(x, y);
@@ -165,21 +173,26 @@ export class GameWorld implements WorldAccess {
     if (length > .001) p.lastDirection = { x: x / Math.hypot(x, y), y: y / Math.hypot(x, y) };
     this.director.update(this, dt);
     this.grid.rebuild(s.enemies);
-    if (this.queuedSkill || (s.autoSkill && p.skillCooldown <= 0 && canAutoActivate(this))) activateSkill(this);
-    if (this.queuedUltimate) activateUltimate(this);
+    // 复活等待期间：不移动、不施法、不拾取，敌人 / 弹幕 / 特效照常推进。
+    if (!dead) {
+      if (this.queuedSkill || (s.autoSkill && p.skillCooldown <= 0 && canAutoActivate(this))) activateSkill(this);
+      if (this.queuedUltimate) activateUltimate(this);
+    }
     this.queuedSkill = false; this.queuedUltimate = false;
-    if (p.dashTime > 0) {
-      const distance = Math.min(p.dashRemaining, ACTIVE.triangle.distance / ACTIVE.triangle.duration * dt);
-      const oldX = p.x, oldY = p.y;
-      this.move(p, p.dashDirection.x * distance, p.dashDirection.y * distance);
-      p.dashRemaining -= distance;
-      p.dashTime = Math.max(0, p.dashTime - dt);
-      if (Math.hypot(p.x - oldX, p.y - oldY) < distance * .9) { p.dashTime = 0; p.dashRemaining = 0; }
-    } else this.move(p, x * p.speed * dt, y * p.speed * dt);
+    if (!dead) {
+      if (p.dashTime > 0) {
+        const distance = Math.min(p.dashRemaining, ACTIVE.triangle.distance / ACTIVE.triangle.duration * dt);
+        const oldX = p.x, oldY = p.y;
+        this.move(p, p.dashDirection.x * distance, p.dashDirection.y * distance);
+        p.dashRemaining -= distance;
+        p.dashTime = Math.max(0, p.dashTime - dt);
+        if (Math.hypot(p.x - oldX, p.y - oldY) < distance * .9) { p.dashTime = 0; p.dashRemaining = 0; }
+      } else this.move(p, x * p.speed * dt, y * p.speed * dt);
+    }
     updateStatuses(this, dt);
     updateUltimate(this, dt);
     this.grid.rebuild(s.enemies);
-    updateSkills(this, dt);
+    if (!dead) updateSkills(this, dt);
     updateProjectiles(this, dt);
     updateEffects(this, dt);
     updateEnemies(this, dt);
@@ -187,7 +200,20 @@ export class GameWorld implements WorldAccess {
     resolveResult(this);
     if (s.result) return;
     if (s.bossDefeated && !s.gift.length) { this.beginStageClear(); return; }
-    this.updatePickups(dt);
+    if (!dead) this.updatePickups(dt);
+    this.grid.rebuild(s.enemies);
+  }
+  /** 复活瞬间：满血、短暂无敌，并移除复活半径内的普通敌人（不给经验与掉落，避免复活即秒死）。 */
+  private revivePlayer(): void {
+    const s = this.state, p = s.player;
+    p.hp = p.maxHp;
+    p.invulnerable = CONFIG.reviveInvulnerable;
+    const radiusSq = CONFIG.reviveClearRadius ** 2;
+    let write = 0;
+    for (const enemy of s.enemies) {
+      if (enemy.kind.startsWith('elite') || enemy.kind === 'boss' || distanceSq(enemy, p) > radiusSq) s.enemies[write++] = enemy;
+    }
+    s.enemies.length = write;
     this.grid.rebuild(s.enemies);
   }
   /** 击破首领：清场、回到地图中心并获得短暂无敌，随后弹出大礼包三选一。 */
@@ -195,6 +221,9 @@ export class GameWorld implements WorldAccess {
     const s = this.state, p = s.player;
     s.enemies.length = 0; s.projectiles.length = 0; s.effects.length = 0; s.event = null;
     p.x = CONFIG.mapSize / 2; p.y = CONFIG.mapSize / 2; p.shield = 0; p.shieldTime = 0;
+    // 首领可能在复活等待期间被持续伤害击杀，通关时补满生命并结束倒计时。
+    s.reviveTimer = 0;
+    if (p.hp <= 0) p.hp = p.maxHp;
     p.invulnerable = Math.max(p.invulnerable, 1.5);
     this.grid.rebuild(s.enemies);
     s.gift = this.progression.rollGift();

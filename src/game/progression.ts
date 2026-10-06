@@ -105,6 +105,7 @@ export class Progression {
   giftCandidates(): UpgradeChoice[] {
     const p = this.state.player, pool: UpgradeChoice[] = [];
     pool.push({ id: 'gift:heal', kind: 'stat', name: '满血强化', description: '生命完全恢复，且生命上限增加 20' });
+    if (this.state.lives < CONFIG.livesCap) pool.push({ id: 'gift:life', kind: 'stat', name: '生命 +1', description: `剩余命数增加 1，最高 ${CONFIG.livesCap} 条` });
     pool.push({ id: 'gift:damage', kind: 'stat', name: '伤害增幅', description: '所有直接伤害增加 12%' });
     if (p.cooldownReduction < CONFIG.cooldownCap) pool.push({ id: 'gift:cooldown', kind: 'stat', name: '冷却增幅', description: '冷却缩减增加 8%' });
     pool.push({ id: 'gift:pickup', kind: 'stat', name: '拾取增幅', description: '经验吸取范围增加 50' });
@@ -126,6 +127,7 @@ export class Progression {
     const choice = s.gift.find(c => c.id === id);
     if (s.result || !choice || !s.gift.length) return false;
     if (choice.id === 'gift:heal') { p.maxHp += 20; p.hp = p.maxHp; }
+    else if (choice.id === 'gift:life') s.lives = Math.min(CONFIG.livesCap, s.lives + 1);
     else if (choice.id === 'gift:damage') p.damageBonus += .12;
     else if (choice.id === 'gift:cooldown') p.cooldownReduction = Math.min(CONFIG.cooldownCap, p.cooldownReduction + .08);
     else if (choice.id === 'gift:pickup') p.pickupRadius += 50;

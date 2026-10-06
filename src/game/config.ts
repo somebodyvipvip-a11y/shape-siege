@@ -18,6 +18,7 @@ export const CONFIG = {
   step: 1 / 60, maxCatchup: 5, mapSize: 3200, playerRadius: 16, spawnClearance: 120,
   enemyLimit: 250, playerProjectileLimit: 400, enemyProjectileLimit: 150, effectLimit: 300, pickupLimit: 300,
   gridSize: 128, bossAt: STAGE_TIMES.boss, timeout: 300, contactProtection: .5, xpRadius: 80,
+  lives: 3, livesCap: 5, reviveDelay: 3, reviveInvulnerable: 2.5, reviveClearRadius: 150,
   skillMaxLevel: 8, autoSlots: 4, maxRerolls: 2, speedBonusCap: .3, cooldownCap: .4,
   critCap: .6, critMultBase: 1.5, critMultCap: 2.5, dodgeCap: .4, armorCap: 20,
   chargeRequired: 20, eventLifetime: 90, eventRadius: 150,

@@ -867,6 +867,52 @@ small {
   letter-spacing: 1px
 }
 
+.hud-right .lives-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ff71851f;
+  border: 1px solid #ff718555;
+  color: #ffb3be;
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px
+}
+
+.hud-right .lives-badge svg {
+  width: 13px;
+  height: 13px
+}
+
+.revive-banner {
+  position: absolute;
+  top: 225px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 12px 26px;
+  border: 1px solid #ff71854a;
+  background: #21172adb;
+  border-radius: 9px
+}
+
+.revive-banner span {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #ff9cab
+}
+
+.revive-banner b {
+  font-size: 26px;
+  font-weight: 700;
+  color: #ffd36a;
+  font-variant-numeric: tabular-nums
+}
+
 .xp-panel {
   display: flex;
   align-items: center;
@@ -2218,6 +2264,12 @@ small {
   .battle-warning {
     top: 192px;
     font-size: 10px
+  }
+  .revive-banner {
+    top: 232px
+  }
+  .revive-banner b {
+    font-size: 22px
   }
   .event-panel {
     right: 12px;
