@@ -7,7 +7,7 @@ export function stageScale(stage: number): StageScale {
   return {
     hp: 1 + 0.35 * n,
     damage: 1 + 0.15 * n,
-    speed: Math.min(1.4, 1 + 0.04 * n),
+    speed: Math.min(1.2, 1 + 0.03 * n),
     eliteHp: 1 + 0.50 * n,
     xp: 1 + 0.15 * n,
     spawn: Math.max(0.55, 1 - 0.06 * n),

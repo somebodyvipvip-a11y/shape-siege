@@ -26,9 +26,9 @@ export const CONFIG = {
   projectileSpeed: 400, pickupSpeed: 500, baseDamageGrowth: .12,
 } as const;
 export const CHARACTERS: Record<CharacterId, { name: string; hp: number; speed: number; base: SkillId; skillCooldown: number; ultimateDuration: number }> = {
-  square: { name: '正方形·堡垒', hp: 140, speed: 180, base: 'base-square', skillCooldown: 10, ultimateDuration: 6 },
-  circle: { name: '圆形·星环', hp: 110, speed: 210, base: 'base-circle', skillCooldown: 9, ultimateDuration: 3 },
-  triangle: { name: '三角形·锋刃', hp: 85, speed: 245, base: 'base-triangle', skillCooldown: 8, ultimateDuration: 2 },
+  square: { name: '正方形·堡垒', hp: 190, speed: 180, base: 'base-square', skillCooldown: 10, ultimateDuration: 6 },
+  circle: { name: '圆形·星环', hp: 150, speed: 210, base: 'base-circle', skillCooldown: 9, ultimateDuration: 3 },
+  triangle: { name: '三角形·锋刃', hp: 115, speed: 245, base: 'base-triangle', skillCooldown: 8, ultimateDuration: 2 },
 };
 export const SKILLS: Record<SkillId, { name: string; damage: number; cooldown: number; range: number; radius: number; behavior: string }> = {
   'base-square': { name: '四向冲击', damage: 18, cooldown: 1, range: 600, radius: 7, behavior: '增加斜向冲击弹' },
@@ -44,11 +44,11 @@ export const SKILLS: Record<SkillId, { name: string; damage: number; cooldown: n
 export const GENERIC_SKILLS: SkillId[] = ['homing', 'lightning', 'boomerang', 'mine', 'shockwave', 'meteor'];
 export const ELEMENT_NAMES = { fire: '火', ice: '冰', lightning: '雷' } as const;
 export const ENEMIES: Record<EnemyKind, { hp: number; speed: number; radius: number; damage: number; xp: number; energy: number }> = {
-  chaser: { hp: 30, speed: 90, radius: 14, damage: 10, xp: 2, energy: 1 },
-  runner: { hp: 20, speed: 145, radius: 11, damage: 8, xp: 2, energy: 1 },
-  tank: { hp: 115, speed: 55, radius: 23, damage: 18, xp: 4, energy: 1 },
-  charger: { hp: 50, speed: 85, radius: 16, damage: 16, xp: 2, energy: 1 },
-  ranged: { hp: 40, speed: 75, radius: 16, damage: 12, xp: 2, energy: 1 },
+  chaser: { hp: 30, speed: 80, radius: 14, damage: 10, xp: 2, energy: 1 },
+  runner: { hp: 20, speed: 128, radius: 11, damage: 8, xp: 2, energy: 1 },
+  tank: { hp: 115, speed: 50, radius: 23, damage: 18, xp: 4, energy: 1 },
+  charger: { hp: 50, speed: 76, radius: 16, damage: 16, xp: 2, energy: 1 },
+  ranged: { hp: 40, speed: 68, radius: 16, damage: 12, xp: 2, energy: 1 },
   'elite-tank': { hp: 1100, speed: 50, radius: 38, damage: 28, xp: 40, energy: 20 },
   'elite-charger': { hp: 1400, speed: 95, radius: 32, damage: 26, xp: 40, energy: 20 },
   boss: { hp: 9000, speed: 55, radius: 60, damage: 30, xp: 0, energy: 0 },
@@ -66,6 +66,8 @@ export const ULTIMATE = {
 export const ELEMENT_CONFIG = { duration: 2, burnRatio: .15, iceSlow: .25, chainRadius: 120, chainCount: 2, chainRatio: .3, thermalRadius: 60, thermalRatio: .4, thermalSlow: .15, thermalInterval: .5 } as const;
 export const DIRECTOR = { eliteTimes: [STAGE_TIMES.firstElite, STAGE_TIMES.secondElite], eventTimes: [STAGE_TIMES.firstEvent, STAGE_TIMES.secondEvent], bossChargeWarning: 1, blastWarning: 1.2, chargeWarning: .8, summonInterval: 20, summonCount: 10, summonCap: 30 } as const;
 export const ENEMY_BEHAVIOR = {
+  // aimCap：同一时刻处于「预警锁定」的指向性敌人上限，避免后期数百个攻击指向同时指向玩家。
+  aimCap: 12,
   chargeSpeed: 430, chargeDuration: .7, chargeRest: 2.2, chargeRange: 420,
   rangedRange: 350, rangedWarning: .7, rangedRest: 2.5, rangedShotSpeed: 230,
   bossChargeSpeed: 500, bossChargeDuration: .85, bossRest: 2.5, bossEnragedRest: 1.4,

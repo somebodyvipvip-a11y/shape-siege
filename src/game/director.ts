@@ -84,6 +84,10 @@ function warning(world: WorldAccess, enemy: Enemy, seconds: number): void {
 export function updateEnemies(world: WorldAccess, dt: number): void {
   prepareNavigation(world, dt);
   const p = world.state.player;
+  // 并发锁定上限：统计本帧已处于「预警锁定」的指向性敌人，超过 AI.aimCap 时不再新增锁定，
+  // 避免后期大量远程/冲刺敌人同时把攻击指向玩家。未获得槽位的敌人继续追击，槽位释放后自然补位。
+  let aimers = 0;
+  for (const enemy of world.state.enemies) if (enemy.hp > 0 && enemy.state === 'warning') aimers++;
   for (const enemy of world.state.enemies) {
     if (enemy.hp <= 0) continue;
     enemy.timer -= dt;
@@ -96,7 +100,7 @@ export function updateEnemies(world: WorldAccess, dt: number): void {
         world.move(enemy, d.x * AI.chargeSpeed * dt, d.y * AI.chargeSpeed * dt);
         if (enemy.timer <= 0) { enemy.state = 'rest'; enemy.timer = AI.chargeRest; }
       } else if (enemy.state !== 'warning') {
-        if (enemy.timer <= 0 && distanceSq(enemy, p) < AI.chargeRange ** 2) warning(world, enemy, DIRECTOR.chargeWarning);
+        if (enemy.timer <= 0 && distanceSq(enemy, p) < AI.chargeRange ** 2 && aimers < AI.aimCap) { warning(world, enemy, DIRECTOR.chargeWarning); aimers++; }
         else steering(world, enemy, p, speed, dt);
       }
     } else if (enemy.kind === 'ranged') {
@@ -106,7 +110,7 @@ export function updateEnemies(world: WorldAccess, dt: number): void {
         enemy.state = 'rest'; enemy.timer = AI.rangedRest;
       } else if (enemy.state !== 'warning') {
         if (distanceSq(enemy, p) > AI.rangedRange ** 2) steering(world, enemy, p, speed, dt);
-        else if (enemy.timer <= 0) warning(world, enemy, AI.rangedWarning);
+        else if (enemy.timer <= 0 && aimers < AI.aimCap) { warning(world, enemy, AI.rangedWarning); aimers++; }
       }
     } else steering(world, enemy, p, speed, dt);
     if (distanceSq(enemy, p) <= (enemy.radius + p.radius) ** 2) {

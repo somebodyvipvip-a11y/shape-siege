@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONFIG, DIRECTOR, stageAt } from '../src/game/config';
+import { CONFIG, DIRECTOR, ENEMY_BEHAVIOR, stageAt } from '../src/game/config';
 import { rerollCap } from '../src/game/progression';
 import { Director, updateEnemies } from '../src/game/director';
 import { clearPath } from '../src/game/navigation';
@@ -146,11 +146,11 @@ describe('运动和命中规则', () => {
   it('接触保护阻止一帧多次扣血，敌方弹丸命中后消失', () => {
     const world = new GameWorld('circle');
     world.damagePlayer(10, true); world.damagePlayer(10, true);
-    expect(world.state.player.hp).toBe(100);
+    expect(world.state.player.hp).toBe(140);
     const p = world.state.player;
     world.addProjectile({ x: p.x, y: p.y, owner: 'enemy', skillId: 'enemy', damage: 12 });
     updateProjectiles(world, CONFIG.step);
-    expect(p.hp).toBe(88); expect(world.state.projectiles).toHaveLength(0);
+    expect(p.hp).toBe(128); expect(world.state.projectiles).toHaveLength(0);
   });
   it('普通和首领冲锋越过锁定位置后继续沿同一方向，只命中一次', () => {
     for (const kind of ['charger', 'boss'] as const) {
@@ -161,7 +161,7 @@ describe('运动和命中规则', () => {
       world.state.player.invulnerable = CONFIG.contactProtection;
       for (let i = 0; i < 30; i++) updateEnemies(world, CONFIG.step);
       expect(enemy.x).toBeGreaterThan(1700);
-      expect(world.state.player.hp).toBe(110 - enemy.damage);
+      expect(world.state.player.hp).toBe(150 - enemy.damage);
     }
   });
   it('追击怪绕过挡路障碍，可以再次接近玩家', () => {
@@ -216,17 +216,17 @@ describe('运动和命中规则', () => {
       Object.assign(boss, { state: 'attack', timer: 1, bossPattern: pattern });
       p.invulnerable = .2;
       updateEnemies(world, CONFIG.step);
-      expect(p.hp).toBe(110);
+      expect(p.hp).toBe(150);
       expect(boss.hitPlayer).toBe(false);
       p.invulnerable = 0;
       updateEnemies(world, CONFIG.step);
-      expect(p.hp).toBe(80);
+      expect(p.hp).toBe(120);
       expect(p.invulnerable).toBe(CONFIG.contactProtection);
       updateEnemies(world, CONFIG.step);
-      expect(p.hp).toBe(80);
+      expect(p.hp).toBe(120);
       p.invulnerable = 0;
       updateEnemies(world, CONFIG.step);
-      expect(p.hp).toBe(50);
+      expect(p.hp).toBe(90);
       expect(boss.hitPlayer).toBe(false);
     }
   });
@@ -313,7 +313,7 @@ describe('元素、技能与大招', () => {
     const square = new GameWorld('square');
     activateSkill(square); expect(square.state.player.shield).toBe(35);
     square.state.player.energy = 100; activateUltimate(square);
-    square.damagePlayer(50); expect(square.state.player.shield).toBe(5); expect(square.state.player.hp).toBe(140);
+    square.damagePlayer(50); expect(square.state.player.shield).toBe(5); expect(square.state.player.hp).toBe(190);
     const enemy = dummy(square, 100);
     for (let i = 0; i < 60; i++) updateUltimate(square, CONFIG.step);
     expect(enemy.hp).toBe(965);
@@ -473,13 +473,30 @@ describe('连续闯关与难度缩放', () => {
   it('第 2 关敌人生命与伤害更高，第 1 关倍率为 1', () => {
     const first = new GameWorld('circle', 5);
     const basic = first.spawnEnemy('chaser', { x: 1000, y: 1000 })!;
-    expect(basic.maxHp).toBe(30); expect(basic.damage).toBe(10); expect(basic.speed).toBe(90);
+    expect(basic.maxHp).toBe(30); expect(basic.damage).toBe(10); expect(basic.speed).toBe(80);
     const second = new GameWorld('circle', 5);
     second.state.stage = 2;
     const stronger = second.spawnEnemy('chaser', { x: 1000, y: 1000 })!;
-    expect(stronger.maxHp).toBeCloseTo(30 * 1.35); expect(stronger.damage).toBeCloseTo(10 * 1.15); expect(stronger.speed).toBeCloseTo(90 * 1.04);
+    expect(stronger.maxHp).toBeCloseTo(30 * 1.35); expect(stronger.damage).toBeCloseTo(10 * 1.15); expect(stronger.speed).toBeCloseTo(80 * 1.03);
     const boss = second.spawnEnemy('boss', { x: 1900, y: 1600 })!;
     expect(boss.maxHp).toBeCloseTo(9000 * 1.5);
+  });
+});
+
+describe('指向性敌人的并发锁定上限', () => {
+  it('大量远程敌人同时进入射程时，处于预警锁定的数量不超过 aimCap', () => {
+    const world = new GameWorld('circle', 77);
+    const p = world.state.player;
+    let spawned = 0;
+    for (let i = 0; i < 40; i++) {
+      const enemy = world.spawnEnemy('ranged', { x: p.x + 160 + (i % 8) * 12, y: p.y - 120 + Math.floor(i / 8) * 12 });
+      if (enemy) { enemy.timer = 0; spawned++; }
+    }
+    expect(spawned).toBeGreaterThan(ENEMY_BEHAVIOR.aimCap);
+    world.update(CONFIG.step, idle);
+    const aiming = world.state.enemies.filter(e => e.kind === 'ranged' && e.state === 'warning');
+    expect(aiming.length).toBeGreaterThan(0);
+    expect(aiming.length).toBeLessThanOrEqual(ENEMY_BEHAVIOR.aimCap);
   });
 });
 
@@ -592,9 +609,9 @@ describe('暴击、闪避与护甲', () => {
     const p = world.state.player;
     p.armor = 8;
     world.damagePlayer(30);
-    expect(p.hp).toBe(88);
+    expect(p.hp).toBe(128);
     world.damagePlayer(5);
-    expect(p.hp).toBe(87);
+    expect(p.hp).toBe(127);
     p.hp = 110; p.dodge = .5;
     world.damagePlayer(20);
     expect(p.hp).toBe(98);
