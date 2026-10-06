@@ -323,7 +323,7 @@ describe('元素、技能与大招', () => {
     circle.state.player.energy = 100; activateUltimate(circle);
     for (let i = 0; i < 180; i++) updateUltimate(circle, CONFIG.step);
     expect(circle.state.player.energy).toBe(0); expect(boss.x).toBe(1750); expect(target.x).toBeLessThan(1700);
-    expect(boss.hp).toBe(8850);
+    expect(boss.hp).toBe(4650);
     const triangle = new GameWorld('triangle'); triangle.state.player.energy = 100; activateUltimate(triangle);
     for (let i = 0; i < 120; i++) updateUltimate(triangle, CONFIG.step);
     expect(triangle.state.projectiles).toHaveLength(40);
@@ -480,7 +480,7 @@ describe('连续闯关与难度缩放', () => {
     const stronger = second.spawnEnemy('chaser', { x: 1000, y: 1000 })!;
     expect(stronger.maxHp).toBeCloseTo(30 * 1.35); expect(stronger.damage).toBeCloseTo(10 * 1.15); expect(stronger.speed).toBeCloseTo(80 * 1.03);
     const boss = second.spawnEnemy('boss', { x: 1900, y: 1600 })!;
-    expect(boss.maxHp).toBeCloseTo(9000 * 1.5);
+    expect(boss.maxHp).toBeCloseTo(4800 * 1.5);
   });
 });
 

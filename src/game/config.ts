@@ -59,7 +59,8 @@ export const ENEMIES: Record<EnemyKind, { hp: number; speed: number; radius: num
   ranged: { hp: 40, speed: 68, radius: 16, damage: 12, xp: 2, energy: 1 },
   'elite-tank': { hp: 1100, speed: 50, radius: 38, damage: 28, xp: 40, energy: 20 },
   'elite-charger': { hp: 1400, speed: 95, radius: 32, damage: 26, xp: 40, energy: 20 },
-  boss: { hp: 9000, speed: 55, radius: 60, damage: 30, xp: 0, energy: 0 },
+  // 首领需在 4:00–5:00 的 60 秒窗口内击破：基础生命由 9000 下调至 4800，避免第一关无法通关。
+  boss: { hp: 4800, speed: 55, radius: 60, damage: 30, xp: 0, energy: 0 },
 };
 export const ACTIVE = {
   square: { radius: 180, shield: 35, duration: 4, knockback: 100 },
@@ -75,7 +76,7 @@ export const ELEMENT_CONFIG = { duration: 2, burnRatio: .15, iceSlow: .25, chain
 export const DIRECTOR = { eliteTimes: [STAGE_TIMES.firstElite, STAGE_TIMES.secondElite], eventTimes: [STAGE_TIMES.firstEvent, STAGE_TIMES.secondEvent], bossChargeWarning: 1, blastWarning: 1.2, chargeWarning: .8, summonInterval: 20, summonCount: 10, summonCap: 30 } as const;
 export const ENEMY_BEHAVIOR = {
   // aimCap：同一时刻处于「预警锁定」的指向性敌人上限，避免后期数百个攻击指向同时指向玩家。
-  aimCap: 12,
+  aimCap: 6,
   chargeSpeed: 430, chargeDuration: .7, chargeRest: 2.2, chargeRange: 420,
   rangedRange: 350, rangedWarning: .7, rangedRest: 2.5, rangedShotSpeed: 230,
   bossChargeSpeed: 500, bossChargeDuration: .85, bossRest: 2.5, bossEnragedRest: 1.4,
