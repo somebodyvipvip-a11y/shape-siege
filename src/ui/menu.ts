@@ -1,8 +1,21 @@
-import { CHARACTERS } from '../game/config';
+import { CHARACTERS, type CharacterAttributes } from '../game/config';
 import type { CharacterId } from '../game/types';
 import type { SaveData } from '../storage';
 import { COLORS, ROLE_TEXT, geometry, icon, timeLabel } from './shared';
 
+/** 英雄先天属性在选人卡片上以文字标签展示，未配置的属性不显示。 */
+function innateStatChips(attributes: CharacterAttributes): string {
+  const percent = (value: number): string => `${Math.round(value * 100)}%`;
+  const chips: string[] = [];
+  if (attributes.critChance) chips.push(`暴击 +${percent(attributes.critChance)}`);
+  if (attributes.critMultiplier) chips.push(`暴伤 +${attributes.critMultiplier.toFixed(2)}×`);
+  if (attributes.dodge) chips.push(`闪避 +${percent(attributes.dodge)}`);
+  if (attributes.armor) chips.push(`护甲 +${attributes.armor}`);
+  if (attributes.luck) chips.push(`幸运 +${attributes.luck}`);
+  if (attributes.cooldownReduction) chips.push(`冷却缩减 +${percent(attributes.cooldownReduction)}`);
+  if (attributes.pickupRadius) chips.push(`拾取范围 +${attributes.pickupRadius}`);
+  return chips.map(text => `<span>${text}</span>`).join('');
+}
 export function menuHTML(selected: CharacterId, save: SaveData, version: string): string {
   const role = ROLE_TEXT[selected];
   return `<main class="menu-screen">
@@ -15,7 +28,7 @@ export function menuHTML(selected: CharacterId, save: SaveData, version: string)
     <section class="selection-section"><div class="section-heading"><div><span class="eyebrow">CHOOSE YOUR GEOMETRY</span><h2>选择你的几何形态</h2></div><span class="selection-caption">不同形态，相同生存法则</span></div>
       <div class="role-grid">${(['circle', 'square', 'triangle'] as const).map((id, index) => {
         const data = ROLE_TEXT[id], unlocked = save.unlocked.includes(id), active = selected === id, config = CHARACTERS[id];
-        return `<button class="role-card ${active ? 'selected' : ''} ${unlocked ? '' : 'locked'}" style="--role-color:${COLORS[id]}" data-character="${id}" aria-pressed="${active}" ${unlocked ? '' : 'disabled'}><span class="role-topline"><span>0${index + 1} / ${id.toUpperCase()}</span><span>${active ? icon('check') : unlocked ? icon('chevron') : icon('lock')}</span></span><div class="role-main">${geometry(id)}<div><h3>${data.title}<span>${id === 'circle' ? '圆形' : id === 'square' ? '正方形' : '三角形'}</span></h3><small>${data.subtitle}</small></div></div><p>${data.attack}</p><div class="role-stats"><span>${icon('heart')} ${config.hp} 生命</span><span>${icon('target')} ${config.speed} 移速</span></div><div class="role-skills"><span>主动 <b>${data.active}</b></span><span>大招 <b>${data.ultimate}</b></span></div><span class="role-footer">${unlocked ? active ? '已选择 · 准备出战' : '选择此形态' : data.condition}</span></button>`;
+        return `<button class="role-card ${active ? 'selected' : ''} ${unlocked ? '' : 'locked'}" style="--role-color:${COLORS[id]}" data-character="${id}" aria-pressed="${active}" ${unlocked ? '' : 'disabled'}><span class="role-topline"><span>0${index + 1} / ${id.toUpperCase()}</span><span>${active ? icon('check') : unlocked ? icon('chevron') : icon('lock')}</span></span><div class="role-main">${geometry(id)}<div><h3>${data.title}<span>${id === 'circle' ? '圆形' : id === 'square' ? '正方形' : '三角形'}</span></h3><small>${data.subtitle}</small></div></div><p>${data.attack}</p><div class="role-stats"><span>${icon('heart')} ${config.hp} 生命</span><span>${icon('target')} ${config.speed} 移速</span>${innateStatChips(config.attributes)}</div><div class="role-skills"><span>主动 <b>${data.active}</b></span><span>大招 <b>${data.ultimate}</b></span></div><span class="role-footer">${unlocked ? active ? '已选择 · 准备出战' : '选择此形态' : data.condition}</span></button>`;
       }).join('')}</div>
     </section>
     <div class="start-row"><p>${icon('help')} 自动攻击敌人，移动拾取经验，升级时选择强化。</p><button class="primary-button start-button" data-action="start">进入竞技场 ${icon('arrow')}</button></div>

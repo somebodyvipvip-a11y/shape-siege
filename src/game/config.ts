@@ -25,10 +25,18 @@ export const CONFIG = {
   chargeRequired: 20, eventLifetime: 90, eventRadius: 150,
   projectileSpeed: 400, pickupSpeed: 500, baseDamageGrowth: .12,
 } as const;
-export const CHARACTERS: Record<CharacterId, { name: string; hp: number; speed: number; base: SkillId; skillCooldown: number; ultimateDuration: number }> = {
-  square: { name: '正方形·堡垒', hp: 190, speed: 180, base: 'base-square', skillCooldown: 10, ultimateDuration: 6 },
-  circle: { name: '圆形·星环', hp: 150, speed: 210, base: 'base-circle', skillCooldown: 9, ultimateDuration: 3 },
-  triangle: { name: '三角形·锋刃', hp: 115, speed: 245, base: 'base-triangle', skillCooldown: 8, ultimateDuration: 2 },
+/** 英雄先天属性加成：均为「在默认值之上的增量」，默认 0，因此不填写的英雄与旧行为一致。 */
+export interface CharacterAttributes {
+  critChance?: number; critMultiplier?: number; dodge?: number; armor?: number; luck?: number;
+  lifesteal?: number; speedBonus?: number; cooldownReduction?: number; damageBonus?: number; pickupRadius?: number;
+}
+export const CHARACTERS: Record<CharacterId, { name: string; hp: number; speed: number; base: SkillId; skillCooldown: number; ultimateDuration: number; attributes: CharacterAttributes }> = {
+  // 堡垒：血最厚、移速最慢，用护甲与冷却缩减强化「扛线 + 频繁开盾」的重装定位。
+  square: { name: '正方形·堡垒', hp: 190, speed: 180, base: 'base-square', skillCooldown: 10, ultimateDuration: 6, attributes: { armor: 3, cooldownReduction: .05 } },
+  // 星环：能力均衡，用幸运与拾取范围强化「运营养成」，走稳定的滚雪球路线。
+  circle: { name: '圆形·星环', hp: 150, speed: 210, base: 'base-circle', skillCooldown: 9, ultimateDuration: 3, attributes: { luck: 1, pickupRadius: 20 } },
+  // 锋刃：血最薄、移速最快，用暴击与闪避走「高风险高回报」的爆发定位。
+  triangle: { name: '三角形·锋刃', hp: 115, speed: 245, base: 'base-triangle', skillCooldown: 8, ultimateDuration: 2, attributes: { critChance: .1, critMultiplier: .25, dodge: .08 } },
 };
 export const SKILLS: Record<SkillId, { name: string; damage: number; cooldown: number; range: number; radius: number; behavior: string }> = {
   'base-square': { name: '四向冲击', damage: 18, cooldown: 1, range: 600, radius: 7, behavior: '增加斜向冲击弹' },

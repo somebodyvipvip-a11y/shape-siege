@@ -23,16 +23,18 @@ export class GameWorld implements WorldAccess {
   private queuedUltimate = false;
 
   constructor(characterId: CharacterId = 'circle', seed = 1) {
-    const character = CHARACTERS[characterId];
+    const character = CHARACTERS[characterId], innate = character.attributes;
     this.simulationRandom = new SeededRandom(seed);
     const choicesRandom = new SeededRandom(seed ^ 0xBADC0FFE);
     this.state = {
       player: {
         characterId, x: CONFIG.mapSize / 2, y: CONFIG.mapSize / 2, radius: CONFIG.playerRadius,
-        hp: character.hp, maxHp: character.hp, speed: character.speed, shield: 0, shieldTime: 0,
+        hp: character.hp, maxHp: character.hp, speed: character.speed * (1 + (innate.speedBonus ?? 0)), shield: 0, shieldTime: 0,
         invulnerable: 0, energy: 0, skillCooldown: 0, skillDuration: 0, ultimateDuration: 0, ultimateTick: 0,
-        lastDirection: { x: 0, y: -1 }, speedBonus: 0, cooldownReduction: 0, damageBonus: 0, pickupRadius: CONFIG.xpRadius,
-        critChance: 0, critMultiplier: CONFIG.critMultBase, dodge: 0, armor: 0, luck: 0, lifesteal: 0,
+        lastDirection: { x: 0, y: -1 }, speedBonus: innate.speedBonus ?? 0, cooldownReduction: innate.cooldownReduction ?? 0,
+        damageBonus: innate.damageBonus ?? 0, pickupRadius: CONFIG.xpRadius + (innate.pickupRadius ?? 0),
+        critChance: innate.critChance ?? 0, critMultiplier: CONFIG.critMultBase + (innate.critMultiplier ?? 0),
+        dodge: innate.dodge ?? 0, armor: innate.armor ?? 0, luck: innate.luck ?? 0, lifesteal: innate.lifesteal ?? 0,
         dashTime: 0, dashRemaining: 0, dashDirection: { x: 0, y: -1 }, skills: [{ id: character.base, level: 1, cooldown: 0, elements: [], enhanced: false }],
       },
       enemies: [], projectiles: [], pickups: [], effects: [], obstacles: makeObstacles(), time: 0,

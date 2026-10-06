@@ -313,7 +313,8 @@ describe('元素、技能与大招', () => {
     const square = new GameWorld('square');
     activateSkill(square); expect(square.state.player.shield).toBe(35);
     square.state.player.energy = 100; activateUltimate(square);
-    square.damagePlayer(50); expect(square.state.player.shield).toBe(5); expect(square.state.player.hp).toBe(190);
+    // 堡垒自带护甲 3：50 × 0.6 = 30，减甲后 27 点由护盾 35 吸收，余 8。
+    square.damagePlayer(50); expect(square.state.player.shield).toBe(8); expect(square.state.player.hp).toBe(190);
     const enemy = dummy(square, 100);
     for (let i = 0; i < 60; i++) updateUltimate(square, CONFIG.step);
     expect(enemy.hp).toBe(965);
@@ -500,6 +501,23 @@ describe('指向性敌人的并发锁定上限', () => {
   });
 });
 
+describe('英雄先天属性', () => {
+  it('每个英雄拥有不同的起始属性，且未配置项保持默认基准', () => {
+    const square = new GameWorld('square').state.player;
+    expect(square.armor).toBe(3); expect(square.cooldownReduction).toBeCloseTo(.05);
+    expect(square.critChance).toBe(0); expect(square.dodge).toBe(0); expect(square.luck).toBe(0);
+
+    const circle = new GameWorld('circle').state.player;
+    expect(circle.luck).toBe(1); expect(circle.pickupRadius).toBe(CONFIG.xpRadius + 20);
+    expect(circle.critChance).toBe(0); expect(circle.armor).toBe(0); expect(circle.dodge).toBe(0);
+
+    const triangle = new GameWorld('triangle').state.player;
+    expect(triangle.critChance).toBeCloseTo(.1); expect(triangle.critMultiplier).toBeCloseTo(CONFIG.critMultBase + .25);
+    expect(triangle.dodge).toBeCloseTo(.08);
+    expect(triangle.armor).toBe(0); expect(triangle.luck).toBe(0);
+  });
+});
+
 describe('命数与复活', () => {
   it('首次死亡扣 1 条命并倒计时满血复活，命数耗尽才判定死亡', () => {
     const world = new GameWorld('circle', 30);
@@ -645,6 +663,7 @@ describe('幸运与稀有卡', () => {
     expect(rerollCap(1)).toBe(CONFIG.maxRerolls);
     expect(rerollCap(5)).toBe(CONFIG.maxRerolls + 2);
     const world = new GameWorld('circle');
+    world.state.player.luck = 0; // 从零幸运开始，隔离星环的先天幸运 +1。
     const gift = (): void => { world.state.gift = [{ id: 'gift:luck', kind: 'stat', name: '幸运 +1', description: '' }]; world.chooseGift('gift:luck'); };
     gift();
     expect(world.state.player.luck).toBe(1);
@@ -655,6 +674,7 @@ describe('幸运与稀有卡', () => {
   });
   it('幸运 ≥ 1 才解锁专属高级卡，卡池标记稀有度', () => {
     const world = new GameWorld('circle');
+    world.state.player.luck = 0; // 从零幸运开始，隔离星环的先天幸运 +1。
     expect(world.debug.candidates().some(c => c.id.startsWith('rare:'))).toBe(false);
     world.state.player.luck = 1;
     const pool = world.debug.candidates();
