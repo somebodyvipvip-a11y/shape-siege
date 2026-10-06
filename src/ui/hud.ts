@@ -1,12 +1,13 @@
 import { CHARACTERS, ELEMENT_NAMES, SKILLS } from '../game/config';
 import type { GameState } from '../game/types';
-import { COLORS, ROLE_TEXT, escapeHTML, geometry, icon, timeLabel } from './shared';
+import { COLORS, ROLE_TEXT, attributeRows, escapeHTML, geometry, icon, timeLabel } from './shared';
 
 export function hudHTML(): string {
-  return `<div class="battle-hud"><div class="hud-top"><div class="vital-panel"><div class="vital-label">${icon('heart')}<span>生命</span><b id="hp-value"></b></div><div class="meter hp-meter"><i id="hp-bar"></i></div><div class="shield-label">${icon('shield')}<span id="shield-value">护盾 0</span></div></div><div class="time-panel"><strong id="battle-time">00:00</strong><span id="battle-phase">初始围攻</span></div><div class="hud-right"><span id="kills-value">0 击杀</span><button class="icon-button" data-action="pause" aria-label="暂停游戏">${icon('pause')}</button></div></div><div class="xp-panel"><b id="level-value">LV. 1</b><div class="meter xp-meter"><i id="xp-bar"></i></div><span id="xp-value">0 / 10</span></div><div id="boss-panel" class="boss-panel" hidden><span>最终首领 · 六边核心 <b id="boss-value"></b></span><div class="meter boss-meter"><i id="boss-bar"></i></div></div><div id="battle-warning" class="battle-warning" hidden></div><div id="event-panel" class="event-panel" hidden></div><div id="skill-slots" class="skill-slots"></div><div class="touch-controls"><div class="joystick" id="joystick" aria-label="移动摇杆"><span class="stick-ring"></span><span class="stick-knob"></span><small>移动 <kbd>W A S D</kbd></small></div><div class="ability-controls"><button id="skill-button" class="ability-button skill-button" aria-label="释放普通技能"><span class="ability-symbol">${geometry('active')}</span><b id="skill-name">普通技能</b><span id="skill-status">空格</span></button><button id="ultimate-button" class="ability-button ultimate-button" aria-label="释放大招"><span class="ability-symbol">${geometry('ultimate')}</span><b id="ultimate-name">大招</b><span id="ultimate-status">0 / 100 · Q</span></button></div></div></div>`;
+  return `<div class="battle-hud"><div class="hud-top"><div class="vital-panel"><div class="vital-label">${icon('heart')}<span>生命</span><b id="hp-value"></b></div><div class="meter hp-meter"><i id="hp-bar"></i></div><div class="shield-label">${icon('shield')}<span id="shield-value">护盾 0</span></div></div><div class="time-panel"><strong id="battle-time">00:00</strong><span id="battle-phase">初始围攻</span></div><div class="hud-right"><span id="kills-value">0 击杀</span><button class="icon-button" data-action="pause" aria-label="暂停游戏">${icon('pause')}</button></div></div><div class="xp-panel"><b id="level-value">LV. 1</b><div class="meter xp-meter"><i id="xp-bar"></i></div><span id="xp-value">0 / 10</span></div><div id="stat-strip" class="stat-strip"></div><div id="boss-panel" class="boss-panel" hidden><span>最终首领 · 六边核心 <b id="boss-value"></b></span><div class="meter boss-meter"><i id="boss-bar"></i></div></div><div id="battle-warning" class="battle-warning" hidden></div><div id="event-panel" class="event-panel" hidden></div><div id="skill-slots" class="skill-slots"></div><div class="touch-controls"><div class="joystick" id="joystick" aria-label="移动摇杆"><span class="stick-ring"></span><span class="stick-knob"></span><small>移动 <kbd>W A S D</kbd></small></div><div class="ability-controls"><button id="skill-button" class="ability-button skill-button" aria-label="释放普通技能"><span class="ability-symbol">${geometry('active')}</span><b id="skill-name">普通技能</b><span id="skill-status">空格</span></button><button id="ultimate-button" class="ability-button ultimate-button" aria-label="释放大招"><span class="ability-symbol">${geometry('ultimate')}</span><b id="ultimate-name">大招</b><span id="ultimate-status">0 / 100 · Q</span></button></div></div></div>`;
 }
 export class HUD {
   private slotKey = '';
+  private statKey = '';
   constructor(private root: HTMLElement) {}
   private text(id: string, value: string): void { const element = this.root.querySelector<HTMLElement>(`#${id}`)!; if (element.textContent !== value) element.textContent = value; }
   private meter(id: string, ratio: number): void { this.root.querySelector<HTMLElement>(`#${id}`)!.style.transform = `scaleX(${Math.max(0, Math.min(1, ratio))})`; }
@@ -16,6 +17,11 @@ export class HUD {
     this.text('hp-value', `${Math.ceil(p.hp)} / ${p.maxHp}`); this.meter('hp-bar', p.hp / p.maxHp);
     this.text('shield-value', `护盾 ${Math.ceil(p.shield)}`); this.text('battle-time', timeLabel(state.time)); this.text('battle-phase', state.phase);
     this.text('kills-value', `${state.kills} 击杀`); this.text('level-value', `LV. ${state.level}`); this.text('xp-value', `${Math.floor(state.xp)} / ${state.xpRequired}`); this.meter('xp-bar', state.xp / state.xpRequired);
+    const attributes = attributeRows(p), statKey = attributes.map(attribute => attribute.value).join('|');
+    if (statKey !== this.statKey) {
+      this.statKey = statKey;
+      this.root.querySelector('#stat-strip')!.innerHTML = attributes.map(attribute => `<span><small>${attribute.label}</small><b>${attribute.value}</b></span>`).join('');
+    }
     const boss = state.enemies.find(enemy => enemy.kind === 'boss');
     this.root.querySelector<HTMLElement>('#boss-panel')!.hidden = !boss;
     if (boss) { this.text('boss-value', `${Math.ceil(boss.hp)} / ${boss.maxHp}`); this.meter('boss-bar', boss.hp / boss.maxHp); }

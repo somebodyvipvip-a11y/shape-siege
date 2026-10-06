@@ -881,6 +881,67 @@ small {
   white-space: nowrap
 }
 
+.stat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+  max-width: 460px
+}
+
+.stat-strip span {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  background: #0b1020b8;
+  border: 1px solid #29395350;
+  border-radius: 6px;
+  padding: 5px 8px
+}
+
+.stat-strip small {
+  font-size: 9px;
+  color: #8096b2;
+  white-space: nowrap
+}
+
+.stat-strip b {
+  font-size: 11px;
+  color: var(--role-color,#63e2c3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap
+}
+
+.attribute-grid {
+  display: grid;
+  grid-template-columns: repeat(2,1fr);
+  gap: 1px;
+  background: #35465f;
+  border: 1px solid #35465f;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 22px 0
+}
+
+.attribute-grid>div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  background: #0b1020;
+  padding: 11px 14px
+}
+
+.attribute-grid small {
+  font-size: 11px;
+  color: #8096b2
+}
+
+.attribute-grid b {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums
+}
+
 .xp-meter {
   flex: 1;
   height: 4px

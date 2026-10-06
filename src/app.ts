@@ -78,7 +78,7 @@ export class GameApp {
       const renderer = await createBattleRenderer(this.root.querySelector('#battle-canvas')!, world, () => this.save.data.settings, dt => this.frame(dt));
       if (generation !== this.generation) { renderer.destroy(); return; }
       this.renderer = renderer; this.starting = false; this.running = true;
-      if (document.hidden || world.state.paused) { world.setPaused(true); this.setPanel('pause', pauseHTML()); }
+      if (document.hidden || world.state.paused) { world.setPaused(true); this.setPanel('pause', pauseHTML(world.state)); }
       else { this.setPanel('none'); this.requestMusic(audioReady); }
       this.notice(this.save.warning);
     } catch (error) {
@@ -112,7 +112,7 @@ export class GameApp {
     if (state.pendingUpgrades > 0 && !['settings', 'help'].includes(this.panel)) {
       const signature = `${state.pendingUpgrades}/${state.rerolls}/${state.choices.map(choice => choice.id).join('|')}`;
       if (this.panel !== 'upgrade' || signature !== this.panelSignature) { const first = this.panel !== 'upgrade'; this.setPanel('upgrade', upgradeHTML(state, this.rewards[0] ?? false)); this.panelSignature = signature; if (first) this.audio.play('upgrade'); }
-    } else if (this.panel === 'none' && state.paused) this.setPanel('pause', pauseHTML());
+    } else if (this.panel === 'none' && state.paused) this.setPanel('pause', pauseHTML(state));
   }
   private setPanel(panel: Panel, html = ''): void {
     if (this.panel === 'none' && panel !== 'none') this.lastFocus = document.activeElement as HTMLElement;
@@ -137,7 +137,7 @@ export class GameApp {
       this.setPanel('upgrade', upgradeHTML(state, this.rewards[0] ?? false)); return;
     }
     if (this.panel === 'pause') this.resume();
-    else { this.world.setPaused(true); this.setPanel('pause', pauseHTML()); }
+    else { this.world.setPaused(true); this.setPanel('pause', pauseHTML(this.world.state)); }
   }
   private resume(): void {
     if (!this.world || this.world.state.result) return;
@@ -157,12 +157,12 @@ export class GameApp {
     this.input?.clear(); this.stopAudio();
     if (!this.world || this.world.state.result) return;
     this.world.setPaused(true);
-    if (this.running && this.panel === 'none') this.setPanel('pause', pauseHTML());
+    if (this.running && this.panel === 'none') this.setPanel('pause', pauseHTML(this.world.state));
   }
   private closePanel(): void {
     if (this.world) {
       if (this.world.state.pendingUpgrades > 0) this.setPanel('upgrade', upgradeHTML(this.world.state, this.rewards[0] ?? false));
-      else this.setPanel('pause', pauseHTML());
+      else this.setPanel('pause', pauseHTML(this.world.state));
     } else this.setPanel('none');
   }
   private click(event: MouseEvent): void {
@@ -178,7 +178,7 @@ export class GameApp {
       this.panelSignature = '';
       // Replace immediately; a queued click can only target a detached card.
       if (this.world.state.pendingUpgrades) { this.setPanel('upgrade', upgradeHTML(this.world.state, this.rewards[0] ?? false)); this.panelSignature = signature === '' ? '' : 'refresh'; }
-      else if (this.world.state.paused) this.setPanel('pause', pauseHTML());
+      else if (this.world.state.paused) this.setPanel('pause', pauseHTML(this.world.state));
       else { this.setPanel('none'); this.requestMusic(); }
       return;
     }

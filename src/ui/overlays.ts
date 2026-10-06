@@ -2,11 +2,11 @@ import { CHARACTERS, CONFIG, ELEMENT_NAMES, SKILLS } from '../game/config';
 import { skillDamage } from '../game/progression';
 import type { CharacterId, GameState, UpgradeChoice } from '../game/types';
 import type { Settings } from '../storage';
-import { COLORS, ROLE_TEXT, escapeHTML, geometry, icon, timeLabel } from './shared';
+import { COLORS, ROLE_TEXT, attributeRows, escapeHTML, geometry, icon, timeLabel } from './shared';
 
 function dialog(content: string, className = '', label = '游戏面板'): string { return `<div class="overlay-backdrop"><section class="dialog ${className}" role="dialog" aria-modal="true" aria-label="${label}" tabindex="-1">${content}</section></div>`; }
-export function pauseHTML(): string {
-  return dialog(`<div class="dialog-emblem">${icon('pause')}</div><span class="eyebrow">TAKE A BREATH</span><h2>战场已暂停</h2><p>时钟与战斗已冻结。准备好了，再出发。</p><div class="dialog-actions"><button class="primary-button" data-action="resume">${icon('play')} 继续战斗</button><button class="secondary-button" data-action="settings">${icon('settings')} 设置</button><button class="quiet-button" data-action="leave">${icon('home')} 返回首页</button></div>`, 'compact-dialog', '暂停游戏');
+export function pauseHTML(state: GameState): string {
+  return dialog(`<div class="dialog-emblem">${icon('pause')}</div><span class="eyebrow">TAKE A BREATH</span><h2>战场已暂停</h2><p>时钟与战斗已冻结。准备好了，再出发。</p><div class="attribute-grid">${attributeRows(state.player).map(attribute => `<div><small>${attribute.label}</small><b>${attribute.value}</b></div>`).join('')}</div><div class="dialog-actions"><button class="primary-button" data-action="resume">${icon('play')} 继续战斗</button><button class="secondary-button" data-action="settings">${icon('settings')} 设置</button><button class="quiet-button" data-action="leave">${icon('home')} 返回首页</button></div>`, 'compact-dialog', '暂停游戏');
 }
 export function confirmLeaveHTML(): string {
   return dialog(`<div class="dialog-emblem">${icon('home')}</div><h2>结束本次挑战？</h2><p>进行中的对局不会保存，也不计入完成成绩。</p><div class="dialog-actions"><button class="primary-button" data-action="menu">返回首页</button><button class="secondary-button" data-action="pause">留在战场</button></div>`, 'compact-dialog', '确认返回首页');

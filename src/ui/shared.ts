@@ -1,5 +1,5 @@
 import { createElement, ArrowRight, Settings2, Keyboard, Play, Pause, RotateCcw, Home, X, LockKeyhole, Check, Trophy, Shield, Heart, Crosshair, Volume2, ChevronRight, Sparkles, CircleHelp, AlertTriangle, type IconNode } from 'lucide';
-import type { CharacterId, SkillId } from '../game/types';
+import type { CharacterId, Player, SkillId } from '../game/types';
 
 const icons: Record<string, IconNode> = { arrow: ArrowRight, settings: Settings2, keyboard: Keyboard, play: Play, pause: Pause, reroll: RotateCcw, home: Home, close: X, lock: LockKeyhole, check: Check, trophy: Trophy, shield: Shield, heart: Heart, target: Crosshair, volume: Volume2, chevron: ChevronRight, sparkles: Sparkles, help: CircleHelp, warning: AlertTriangle };
 export function icon(name: string): string { return createElement(icons[name] ?? CircleHelp, { width: 20, height: 20, 'aria-hidden': 'true', 'stroke-width': 1.8 }).outerHTML; }
@@ -24,4 +24,14 @@ export function geometry(id: CharacterId | SkillId | string, className = ''): st
   return `<svg class="geo-icon ${className}" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
 }
 export function timeLabel(time: number): string { const value = Math.floor(time); return `${Math.floor(value / 60).toString().padStart(2, '0')}:${(value % 60).toString().padStart(2, '0')}`; }
+export function attributeRows(player: Player): { label: string; value: string }[] {
+  const percent = (value: number): string => `${Math.round(value * 100)}%`;
+  return [
+    { label: '生命上限', value: `${Math.round(player.maxHp)}` },
+    { label: '移动速度', value: `${Math.round(player.speed)}${player.speedBonus > 0 ? ` +${percent(player.speedBonus)}` : ''}` },
+    { label: '伤害加成', value: `+${percent(player.damageBonus)}` },
+    { label: '冷却缩减', value: percent(player.cooldownReduction) },
+    { label: '拾取范围', value: `${Math.round(player.pickupRadius)}` },
+  ];
+}
 export function escapeHTML(text: string): string { return text.replace(/[&<>"']/g, value => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[value]!); }
