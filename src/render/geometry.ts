@@ -12,6 +12,25 @@ export function polygon(g: Graphics, x: number, y: number, radius: number, sides
 export function dashedCircle(g: Graphics, x: number, y: number, radius: number, parts = 24): void {
   for (let i = 0; i < parts; i++) { const angle = i * Math.PI * 2 / parts; g.beginPath(); g.arc(x, y, radius, angle, angle + Math.PI / parts); g.strokePath(); }
 }
+const DIGIT_SEGMENTS: Record<string, number[]> = {
+  '0': [0, 1, 2, 3, 4, 5], '1': [1, 2], '2': [0, 1, 6, 4, 3], '3': [0, 1, 6, 2, 3], '4': [5, 6, 1, 2],
+  '5': [0, 5, 6, 2, 3], '6': [0, 5, 6, 4, 2, 3], '7': [0, 1, 2], '8': [0, 1, 2, 3, 4, 5, 6], '9': [0, 1, 2, 3, 5, 6],
+};
+const SEGMENT_LINES: readonly [number, number, number, number][] = [[0, 0, 1, 0], [1, 0, 1, .5], [1, .5, 1, 1], [0, 1, 1, 1], [0, .5, 0, 1], [0, 0, 0, .5], [0, .5, 1, .5]];
+// 用七段式矢量数字把生命值画在敌人身上，避免为每个敌人创建 Text 对象带来的开销。
+export function drawNumber(g: Graphics, x: number, y: number, value: number, height: number): void {
+  const text = String(Math.max(0, Math.ceil(value))), width = height * .58, gap = height * .5;
+  let left = x - (text.length * width + (text.length - 1) * gap) / 2;
+  const top = y - height / 2;
+  g.lineStyle(Math.max(1, height * .17), 0xf2f5fa, .92);
+  for (const character of text) {
+    for (const segment of DIGIT_SEGMENTS[character] ?? []) {
+      const [x1, y1, x2, y2] = SEGMENT_LINES[segment];
+      g.lineBetween(left + x1 * width, top + y1 * height, left + x2 * width, top + y2 * height);
+    }
+    left += width + gap;
+  }
+}
 function enemy(g: Graphics, e: Enemy, time: number, reduced: boolean): void {
   const color = e.burn ? 0xffa568 : e.slowTime > 0 ? 0x91cfff : PALETTE.enemy;
   g.fillStyle(0x311e35, 1); g.lineStyle(e.kind === 'boss' ? 3 : 2, color, 1);
@@ -40,6 +59,8 @@ function enemy(g: Graphics, e: Enemy, time: number, reduced: boolean): void {
     g.fillStyle(0x080d18, 1); g.fillRect(e.x - e.radius, e.y - e.radius - 21, e.radius * 2, 5);
     g.fillStyle(color, 1); g.fillRect(e.x - e.radius, e.y - e.radius - 21, e.radius * 2 * Math.max(0, e.hp / e.maxHp), 5);
   }
+  // 精英、首领常显血值；普通敌人只在掉血后显示，避免满屏数字。
+  if (e.kind.startsWith('elite') || e.kind === 'boss' || e.hp < e.maxHp) drawNumber(g, e.x, e.y, e.hp, Math.min(20, Math.max(7, e.radius * .95)));
 }
 export function drawWorld(g: Graphics, danger: Graphics, state: GameState, settings: Settings): void {
   const p = state.player, color = PALETTE[p.characterId], width = state.viewport.x, height = state.viewport.y;
@@ -87,6 +108,7 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
     g.lineStyle(1, color, .15); g.strokeCircle(p.x, p.y, radius);
     for (let i = 0; i < count; i++) {
       const angle = state.time * 2.8 + i * Math.PI * 2 / count, x = p.x + Math.cos(angle) * radius, y = p.y + Math.sin(angle) * radius;
+      g.lineStyle(1, color, .12); g.lineBetween(p.x, p.y, x, y);
       if (settings.quality !== 'low') { g.fillStyle(color, .08); g.fillCircle(x, y, 18); }
       g.fillStyle(color, .85); g.fillCircle(x, y, SKILLS['base-circle'].radius); g.lineStyle(1, 0xf2f5fa, .75); g.strokeCircle(x, y, 8);
       drawElements(g, x, y, SKILLS['base-circle'].radius + 2, orbit.elements);
