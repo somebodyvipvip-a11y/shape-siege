@@ -1,10 +1,10 @@
 # Shape Siege · 当前交接文档
 
-更新日期：2026-10-07。唯一版本来源 VERSION，本地 0.13.2；此前线上 0.13.1（最终记录提交 daa673a，工作流 37499364169）。本轮将移动区改为下半战场全宽，兼顾左右手持机。
+更新日期：2026-10-07。唯一版本来源 VERSION，本地与线上均为 0.13.2，功能提交 d20ca85，工作流 37501840907 成功。本轮将移动区改为下半战场全宽，兼顾左右手持机。
 
 ## 交付规则
 
-遵循 AGENTS.md：检查 diff、必要验证、SemVer、CHANGELOG 与本交接、Conventional Commit。用户长期授权大更新验证后自动更新 Pages；本轮触摸改动验证后发布，明确要求暂不发布时遵循最新指令。
+遵循 AGENTS.md：检查 diff、必要验证、SemVer、CHANGELOG 与本交接、Conventional Commit。用户长期授权大更新验证后自动更新 Pages；本轮触摸改动已验证并发布，明确要求暂不发布时遵循最新指令。
 
 ## 本轮手机触摸调整
 
@@ -39,6 +39,6 @@
 
 Node.js 24/npm 11，PowerShell：npm ci；npm run dev；npm test；npm run build。VERSION 改动后重启 dev；可用 npm exec vite preview -- --host 127.0.0.1 --port 4173 预览生产包，端口以输出为准。
 
-Git main，仓库 https://github.com/somebodyvipvip-a11y/shape-siege，Pages https://somebodyvipvip-a11y.github.io/shape-siege/。推送触发 pages.yml 安装、测试、构建、部署，PAGES_ENABLED=true。0.13.1 最终工作流 37499364169 成功；本轮 0.13.2 待提交发布。后续仅发布记录补记不改动 VERSION。
+Git main，仓库 https://github.com/somebodyvipvip-a11y/shape-siege，Pages https://somebodyvipvip-a11y.github.io/shape-siege/。推送触发 pages.yml 安装、测试、构建、部署，PAGES_ENABLED=true。0.13.1 最终工作流 37499364169 成功；本轮 0.13.2 功能提交 d20ca85，工作流 37501840907 测试/构建/部署成功；线上公告与操作说明 v0.13.2 验证，实际 movement-zone 满宽/半高/顶部位于半屏三项均成立。后续仅发布记录补记不改动 VERSION。
 
 回放：设置 BALANCE_POLICY=casual 和可选 BALANCE_CHARACTERS=diamond,pentagon,hexagon，运行 npm exec vitest run -- --config scripts/balance.config.ts，结束清除环境变量。无账号/联机/局中保存，localStorage 为浏览器独立存档。
