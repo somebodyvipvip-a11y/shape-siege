@@ -1,4 +1,4 @@
-import { ACTIVE, CHARACTERS, CONFIG, ENEMIES } from './config';
+import { ACTIVE, CHARACTERS, CONFIG, ENEMIES, STAGES } from './config';
 import { collectDeaths, damageEnemy, damagePlayer, resolveResult, updateStatuses } from './combat';
 import { Director, updateEnemies } from './director';
 import { Progression } from './progression';
@@ -35,7 +35,7 @@ export class GameWorld implements WorldAccess {
       },
       enemies: [], projectiles: [], pickups: [], effects: [], obstacles: makeObstacles(), time: 0,
       kills: 0, level: 1, xp: 0, xpRequired: 10, pendingUpgrades: 0, choices: [], rerolls: CONFIG.maxRerolls,
-      result: null, event: null, damageBySkill: {}, phase: '初始围攻', paused: false,
+      result: null, event: null, damageBySkill: {}, phase: STAGES[0].name, paused: false,
       bossSpawned: false, bossDefeated: false, eliteKills: 0, warning: null, viewport: { x: 1000, y: 700 }, autoSkill: false,
     };
     this.progression = new Progression(this.state, choicesRandom.next);

@@ -1,6 +1,7 @@
-import { CONFIG, DIRECTOR, ENEMY_BEHAVIOR as AI } from './config';
+import { CONFIG, DIRECTOR, ENEMY_BEHAVIOR as AI, stageAt } from './config';
+import { navigationDirection, prepareNavigation } from './navigation';
 import { blocked, direction, distanceSq } from './spatial';
-import type { Enemy, EnemyKind, Vec, WorldAccess } from './types';
+import type { Enemy, Vec, WorldAccess } from './types';
 
 export class Director {
   private spawnTimer = 0;
@@ -8,7 +9,8 @@ export class Director {
   private events = new Set<number>();
   update(world: WorldAccess, dt: number): void {
     const s = world.state;
-    s.phase = s.time < 120 ? '初始围攻' : s.time < 180 ? '重甲来袭' : s.time < 360 ? '精英围攻' : s.time < 540 ? '高压混战' : '六边核心';
+    const stage = stageAt(s.time);
+    s.phase = stage.name;
     if (s.time >= CONFIG.timeout - 30) s.warning = '剩余 30 秒：击败六边核心';
     for (const [i, at] of DIRECTOR.eliteTimes.entries()) if (s.time >= at && !this.elites.has(at)) {
       if (world.spawnEnemy(i === 0 ? 'elite-tank' : 'elite-charger')) this.elites.add(at);
@@ -25,11 +27,9 @@ export class Director {
     if (s.bossSpawned) return;
     this.spawnTimer -= dt;
     if (this.spawnTimer > 0) return;
-    const relief = DIRECTOR.eliteTimes.some(t => s.time >= t && s.time < t + 15) || (s.time >= 360 && s.time % 50 > 42);
+    const relief = DIRECTOR.eliteTimes.some(t => s.time >= t && s.time < t + 15) || (stage.periodicRelief && s.time % 50 > 42);
     this.spawnTimer = relief ? .8 : Math.max(.14, .7 - s.time / 800);
-    const batch = s.time < 120 ? 1 : s.time < 360 ? 2 : 3;
-    const available: EnemyKind[] = s.time < 35 ? ['chaser'] : s.time < 120 ? ['chaser', 'chaser', 'runner'] : s.time < 180 ? ['chaser', 'runner', 'tank'] : ['chaser', 'runner', 'tank', 'charger', 'ranged'];
-    for (let i = 0; i < batch; i++) world.spawnEnemy(available[Math.floor(world.random() * available.length)]);
+    for (let i = 0; i < stage.batch; i++) world.spawnEnemy(stage.enemies[Math.floor(world.random() * stage.enemies.length)]);
   }
   private openEvent(world: WorldAccess, kind: 'elite' | 'charge'): void {
     const p = world.state.player;
@@ -60,27 +60,18 @@ export class Director {
 }
 
 function steering(world: WorldAccess, enemy: Enemy, target: Vec, speed: number, dt: number): void {
-  const d = direction(enemy, target), angle = Math.atan2(d.y, d.x);
-  // Follow a consistent wall side, rather than oscillating behind an obstacle.
-  for (const offset of [0, enemy.avoidSide * Math.PI / 4, enemy.avoidSide * Math.PI / 2, enemy.avoidSide * 3 * Math.PI / 4, Math.PI, -enemy.avoidSide * Math.PI / 2]) {
-    const x = Math.cos(angle + offset), y = Math.sin(angle + offset);
-    let clear = true;
-    for (const ahead of [20, 50]) if (blocked({ x: enemy.x + x * ahead, y: enemy.y + y * ahead }, enemy.radius, world.state.obstacles)) { clear = false; break; }
-    if (clear) {
-      let separationX = 0, separationY = 0;
-      for (const neighbor of world.nearby(enemy, enemy.radius * 2 + 25)) {
-        if (neighbor.id === enemy.id) continue;
-        const distance = Math.sqrt(distanceSq(enemy, neighbor));
-        const gap = enemy.radius + neighbor.radius;
-        if (distance > 0 && distance < gap) {
-          separationX += (enemy.x - neighbor.x) / distance * (gap - distance) * 2;
-          separationY += (enemy.y - neighbor.y) / distance * (gap - distance) * 2;
-        }
-      }
-      world.move(enemy, (x * speed + separationX) * dt, (y * speed + separationY) * dt);
-      return;
+  const d = navigationDirection(world, enemy, target, speed * dt);
+  let separationX = 0, separationY = 0;
+  for (const neighbor of world.nearby(enemy, enemy.radius * 2 + 25)) {
+    if (neighbor.id === enemy.id) continue;
+    const distance = Math.sqrt(distanceSq(enemy, neighbor));
+    const gap = enemy.radius + neighbor.radius;
+    if (distance > 0 && distance < gap) {
+      separationX += (enemy.x - neighbor.x) / distance * (gap - distance) * 2;
+      separationY += (enemy.y - neighbor.y) / distance * (gap - distance) * 2;
     }
   }
+  world.move(enemy, (d.x * speed + separationX) * dt, (d.y * speed + separationY) * dt);
 }
 function warning(world: WorldAccess, enemy: Enemy, seconds: number): void {
   enemy.state = 'warning'; enemy.timer = seconds; enemy.target = { x: world.state.player.x, y: world.state.player.y };
@@ -88,6 +79,7 @@ function warning(world: WorldAccess, enemy: Enemy, seconds: number): void {
   enemy.attackId = world.nextId(); enemy.hitPlayer = false;
 }
 export function updateEnemies(world: WorldAccess, dt: number): void {
+  prepareNavigation(world, dt);
   const p = world.state.player;
   for (const enemy of world.state.enemies) {
     if (enemy.hp <= 0) continue;
@@ -115,7 +107,7 @@ export function updateEnemies(world: WorldAccess, dt: number): void {
       }
     } else steering(world, enemy, p, speed, dt);
     if (distanceSq(enemy, p) <= (enemy.radius + p.radius) ** 2) {
-      if (enemy.state === 'attack' && (enemy.kind.includes('charger') || enemy.kind === 'boss')) {
+      if (enemy.state === 'attack' && (enemy.kind.includes('charger') || (enemy.kind === 'boss' && enemy.bossPattern === 1))) {
         if (!enemy.hitPlayer && p.dashTime <= 0) { world.damagePlayer(enemy.damage); enemy.hitPlayer = true; }
       } else world.damagePlayer(enemy.damage, true);
     }

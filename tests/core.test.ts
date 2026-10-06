@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { CONFIG } from '../src/game/config';
-import { updateEnemies } from '../src/game/director';
+import { CONFIG, DIRECTOR, stageAt } from '../src/game/config';
+import { Director, updateEnemies } from '../src/game/director';
+import { clearPath } from '../src/game/navigation';
 import { activateSkill, activateUltimate, updateEffects, updateProjectiles, updateSkills, updateUltimate } from '../src/game/skills';
 import { blocked, distanceSq } from '../src/game/spatial';
 import type { Element, Enemy, Input, SkillId } from '../src/game/types';
@@ -156,6 +157,7 @@ describe('运动和命中规则', () => {
       const enemy = world.spawnEnemy(kind, { x: 1500, y: 1600 })!;
       enemy.state = 'attack'; enemy.timer = .7; enemy.attackDirection = { x: 1, y: 0 }; enemy.target = { x: 1510, y: 1600 };
       enemy.bossPattern = 1; enemy.radius = 16;
+      world.state.player.invulnerable = CONFIG.contactProtection;
       for (let i = 0; i < 30; i++) updateEnemies(world, CONFIG.step);
       expect(enemy.x).toBeGreaterThan(1700);
       expect(world.state.player.hp).toBe(110 - enemy.damage);
@@ -170,6 +172,62 @@ describe('运动和命中规则', () => {
     expect(enemy.x).toBeGreaterThan(1840);
     expect(distanceSq(enemy, world.state.player)).toBeLessThan(80 ** 2);
     expect(blocked(enemy, enemy.radius, world.state.obstacles)).toBe(false);
+  });
+  it('默认地图的长距离追击不会永久在障碍角落振荡', () => {
+    const finalPositions = [];
+    for (const side of [-1, 1]) {
+      const world = new GameWorld();
+      Object.assign(world.state.player, { x: 842.9008634, y: 131.5168725 });
+      const enemy = world.spawnEnemy('chaser', { x: 2894.1033717, y: 834.6706369 })!;
+      enemy.avoidSide = side;
+      for (let i = 0; i < 60 * 60; i++) updateEnemies(world, CONFIG.step);
+      expect(distanceSq(enemy, world.state.player), `avoidSide=${side}`).toBeLessThan(80 ** 2);
+      expect(blocked(enemy, enemy.radius, world.state.obstacles)).toBe(false);
+      finalPositions.push({ x: enemy.x, y: enemy.y });
+    }
+    expect(finalPositions[0]).toEqual(finalPositions[1]);
+  });
+  it('不同体型可以绕障接近贴墙玩家，目标移动后共享路径会更新', () => {
+    for (const radius of [11, 23, 38, 60]) {
+      const world = new GameWorld();
+      Object.assign(world.state.player, { x: 842.9008634, y: 131.5168725 });
+      const enemy = world.spawnEnemy('chaser', { x: 2894.1033717, y: 834.6706369 })!;
+      enemy.radius = radius;
+      for (let i = 0; i < 30 * 60; i++) {
+        if (i === 10 * 60) Object.assign(world.state.player, { x: 1950, y: 1940 });
+        updateEnemies(world, CONFIG.step);
+        expect(blocked(enemy, radius, world.state.obstacles)).toBe(false);
+      }
+      expect(distanceSq(enemy, world.state.player)).toBeLessThan((radius + world.state.player.radius) ** 2);
+    }
+  });
+  it('导航检查完整扫掠圆体，不能穿过薄墙或擦过矩形角', () => {
+    const obstacles = [{ x: 1000, y: 1000, width: 180, height: 180 }];
+    expect(clearPath({ x: 800, y: 1100 }, { x: 1400, y: 1100 }, 14, [{ x: 1000, y: 1000, width: 1, height: 180 }])).toBe(false);
+    expect(clearPath({ x: 900, y: 1080 }, { x: 1080, y: 900 }, 16, obstacles)).toBe(false);
+    expect(clearPath({ x: 900, y: 980 }, { x: 1200, y: 980 }, 16, obstacles)).toBe(true);
+  });
+  it('首领扇形和爆破的身体接触遵守保护间隔，不消费冲锋命中记录', () => {
+    for (const pattern of [0, 2]) {
+      const world = new GameWorld();
+      const p = world.state.player;
+      const boss = world.spawnEnemy('boss', { x: p.x, y: p.y })!;
+      Object.assign(boss, { state: 'attack', timer: 1, bossPattern: pattern });
+      p.invulnerable = .2;
+      updateEnemies(world, CONFIG.step);
+      expect(p.hp).toBe(110);
+      expect(boss.hitPlayer).toBe(false);
+      p.invulnerable = 0;
+      updateEnemies(world, CONFIG.step);
+      expect(p.hp).toBe(80);
+      expect(p.invulnerable).toBe(CONFIG.contactProtection);
+      updateEnemies(world, CONFIG.step);
+      expect(p.hp).toBe(80);
+      p.invulnerable = 0;
+      updateEnemies(world, CONFIG.step);
+      expect(p.hp).toBe(50);
+      expect(boss.hitPlayer).toBe(false);
+    }
   });
   it('自动三角冲刺避开无合法完整路径，手动仍可使用', () => {
     const world = new GameWorld('triangle');
@@ -263,6 +321,32 @@ describe('元素、技能与大招', () => {
 });
 
 describe('导演、地图事件与结算', () => {
+  it('阶段名称、刷怪组合和批次保持原边界，事件精英与首领使用统一时刻', () => {
+    const boundaries = [
+      [0, '初始围攻', 1, ['chaser']],
+      [35, '初始围攻', 1, ['chaser', 'chaser', 'runner']],
+      [120, '重甲来袭', 2, ['chaser', 'runner', 'tank']],
+      [180, '精英围攻', 2, ['chaser', 'runner', 'tank', 'charger', 'ranged']],
+      [360, '高压混战', 3, ['chaser', 'runner', 'tank', 'charger', 'ranged']],
+      [540, '六边核心', 3, ['chaser', 'runner', 'tank', 'charger', 'ranged']],
+    ] as const;
+    for (const [index, [at, name, batch, enemies]] of boundaries.entries()) {
+      expect(stageAt(at)).toMatchObject({ name, batch, enemies });
+      if (index > 0) expect(stageAt(at - CONFIG.step)).toBe(stageAt(boundaries[index - 1][0]));
+      const world = new GameWorld('circle', 9);
+      world.state.time = at;
+      new Director().update(world, CONFIG.step);
+      expect(world.state.phase).toBe(name);
+      if (at < CONFIG.bossAt) {
+        const ordinary = world.state.enemies.filter(e => !e.kind.startsWith('elite'));
+        expect(ordinary).toHaveLength(batch);
+        for (const enemy of ordinary) expect(enemies).toContain(enemy.kind);
+      } else expect(world.state.bossSpawned).toBe(true);
+    }
+    expect(DIRECTOR.eliteTimes).toEqual([180, 360]);
+    expect(DIRECTOR.eventTimes).toEqual([120, 300]);
+    expect(CONFIG.bossAt).toBe(540);
+  });
   it('刷怪保持真实视野外的净距，出生区畅通且上限不积压补发', () => {
     const world = new GameWorld('circle', 9);
     world.setViewport(1200, 600);

@@ -1,9 +1,22 @@
 import type { CharacterId, EnemyKind, SkillId } from './types';
 
+export const STAGE_TIMES = { runners: 35, armor: 120, firstElite: 180, chargeEvent: 300, pressure: 360, boss: 540 } as const;
+interface Stage { at: number; name: string; batch: number; enemies: readonly EnemyKind[]; periodicRelief: boolean }
+const mixedEnemies: readonly EnemyKind[] = ['chaser', 'runner', 'tank', 'charger', 'ranged'];
+export const STAGES: readonly Stage[] = [
+  { at: 0, name: '初始围攻', batch: 1, enemies: ['chaser'], periodicRelief: false },
+  { at: STAGE_TIMES.runners, name: '初始围攻', batch: 1, enemies: ['chaser', 'chaser', 'runner'], periodicRelief: false },
+  { at: STAGE_TIMES.armor, name: '重甲来袭', batch: 2, enemies: ['chaser', 'runner', 'tank'], periodicRelief: false },
+  { at: STAGE_TIMES.firstElite, name: '精英围攻', batch: 2, enemies: mixedEnemies, periodicRelief: false },
+  { at: STAGE_TIMES.pressure, name: '高压混战', batch: 3, enemies: mixedEnemies, periodicRelief: true },
+  { at: STAGE_TIMES.boss, name: '六边核心', batch: 3, enemies: mixedEnemies, periodicRelief: true },
+];
+export function stageAt(time: number): Stage { return STAGES.reduce((stage, next) => time >= next.at ? next : stage, STAGES[0]); }
+
 export const CONFIG = {
   step: 1 / 60, maxCatchup: 5, mapSize: 3200, playerRadius: 16, spawnClearance: 120,
   enemyLimit: 250, playerProjectileLimit: 400, enemyProjectileLimit: 150, effectLimit: 300, pickupLimit: 300,
-  gridSize: 128, bossAt: 540, timeout: 720, contactProtection: .5, xpRadius: 80,
+  gridSize: 128, bossAt: STAGE_TIMES.boss, timeout: 720, contactProtection: .5, xpRadius: 80,
   skillMaxLevel: 8, autoSlots: 4, maxRerolls: 2, speedBonusCap: .3, cooldownCap: .4,
   chargeRequired: 20, eventLifetime: 90, eventRadius: 150,
   projectileSpeed: 400, pickupSpeed: 500, baseDamageGrowth: .12,
@@ -47,7 +60,7 @@ export const ULTIMATE = {
   triangle: { rounds: 5, blades: 8, damage: 30 },
 } as const;
 export const ELEMENT_CONFIG = { duration: 2, burnRatio: .15, iceSlow: .25, chainRadius: 120, chainCount: 2, chainRatio: .3, thermalRadius: 60, thermalRatio: .4, thermalSlow: .15, thermalInterval: .5 } as const;
-export const DIRECTOR = { eliteTimes: [180, 360], eventTimes: [120, 300], bossChargeWarning: 1, blastWarning: 1.2, chargeWarning: .8, summonInterval: 20, summonCount: 10, summonCap: 30 } as const;
+export const DIRECTOR = { eliteTimes: [STAGE_TIMES.firstElite, STAGE_TIMES.pressure], eventTimes: [STAGE_TIMES.armor, STAGE_TIMES.chargeEvent], bossChargeWarning: 1, blastWarning: 1.2, chargeWarning: .8, summonInterval: 20, summonCount: 10, summonCap: 30 } as const;
 export const ENEMY_BEHAVIOR = {
   chargeSpeed: 430, chargeDuration: .7, chargeRest: 2.2, chargeRange: 420,
   rangedRange: 350, rangedWarning: .7, rangedRest: 2.5, rangedShotSpeed: 230,
