@@ -3095,10 +3095,10 @@ small {
 }
 
 
-/* 起手落点即圆心：覆盖左半战场，按钮和弹窗保持独立命中。 */
+/* 起手落点即圆心：下半战场全宽可移动，按钮和弹窗保持独立命中。 */
 .movement-zone {
   position: absolute;
-  inset: 0 50% 0 0;
+  inset: 50% 0 0;
   pointer-events: auto;
   touch-action: none;
   user-select: none;
