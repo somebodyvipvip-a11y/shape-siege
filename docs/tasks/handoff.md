@@ -1,6 +1,6 @@
 # Shape Siege · 当前交接文档
 
-更新日期：2026-10-07。唯一版本来源 VERSION，本地 0.15.1；线上上一已验证版本为 0.15.0。本轮修复用户反馈的手机三选一滚动与战场超大黑边。
+更新日期：2026-10-07。唯一版本来源 VERSION，本地与已验证线上均为 0.15.1；修复提交 b500a78，工作流 37562169194 测试、构建与部署成功。本轮修复用户反馈的手机三选一滚动与战场超大黑边。
 
 ## 根因与修改
 
@@ -25,8 +25,8 @@
 
 ## Git / 发布与下一步
 
-Git main，仓库 https://github.com/somebodyvipvip-a11y/shape-siege，Pages https://somebodyvipvip-a11y.github.io/shape-siege/。本轮 0.15.1 待最终验证/提交/上线确认。
-下一步：全量测试与构建 → 正式生产浏览器验证 → 检查 diff/提交/推送 → 确认 Actions 与线上版本 → 发布状态补记（不升版本）。
+Git main，仓库 https://github.com/somebodyvipvip-a11y/shape-siege，Pages https://somebodyvipvip-a11y.github.io/shape-siege/。本轮 0.15.1 已提交、推送与发布；修复提交 b500a78，Actions 37562169194 的 build/deploy 成功，线上公告 v0.15.1 验证通过。
+当前无本轮未完成的修复或发布事项。下一步：用户手机实际验收；有条件时补 iOS/Android 真机安全区与触控/性能测试。纯发布状态补记不升产品版本。
 
 ## 开发与维护
 
