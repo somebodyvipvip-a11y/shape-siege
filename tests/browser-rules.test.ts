@@ -219,6 +219,13 @@ describe('rendering matches simulation geometry', () => {
     const portrait = viewportFor(360, 800), landscape = viewportFor(800, 360);
     expect(portrait.width * portrait.height).toBeCloseTo(landscape.width * landscape.height, 8);
   });
+  it.each([[1280,720], [1366,768], [1920,1080], [2560,1440]])('keeps desktop geometry at most its world size on a %ix%i CSS surface', (width, height) => {
+    const view = viewportFor(width, height);
+    const zoom = width / view.width;
+    expect(32 * zoom).toBeLessThanOrEqual(32 + 1e-8);
+    expect(view.width).toBeGreaterThanOrEqual(width - 1e-8);
+    expect(view.height).toBeGreaterThanOrEqual(height - 1e-8);
+  });
 });
 
 

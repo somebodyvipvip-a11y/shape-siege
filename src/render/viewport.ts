@@ -1,6 +1,7 @@
-const VIEW_AREA = 1000 * 700;
-/** Equal world area across orientation, using the full battle surface. */
+const MIN_VIEW_AREA = 1000 * 700;
+/** CSS dimensions: keep the mobile view, expand large surfaces instead of magnifying geometry. */
 export function viewportFor(width: number, height: number): { width: number; height: number; ratio: number } {
-  const ratio = Math.max(1, width) / Math.max(1, height);
-  return { width: Math.sqrt(VIEW_AREA * ratio), height: Math.sqrt(VIEW_AREA / ratio), ratio };
+  const safeWidth = Math.max(1, width), safeHeight = Math.max(1, height);
+  const ratio = safeWidth / safeHeight, area = Math.max(MIN_VIEW_AREA, safeWidth * safeHeight);
+  return { width: Math.sqrt(area * ratio), height: Math.sqrt(area / ratio), ratio };
 }

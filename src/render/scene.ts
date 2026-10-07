@@ -24,7 +24,8 @@ export function createBattleRenderer(host: HTMLElement, world: GameWorld, settin
         resolve({ destroy, resize, shake: () => { const config = settings(); if (config.shake && !config.reducedMotion) this.cameras.main.shake(90, .0025); } });
       }
       layout(width: number, height: number): void {
-        const view = viewportFor(width, height);
+        // Camera size uses backing pixels; the visible world uses CSS pixels so quality/DPR never change scale.
+        const view = viewportFor(host.clientWidth, host.clientHeight);
         const camera = this.cameras.main;
         camera.setViewport(0, 0, width, height);
         camera.setZoom(width / view.width); world.setViewport(view.width, view.height);
