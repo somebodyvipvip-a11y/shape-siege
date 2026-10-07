@@ -1,5 +1,6 @@
 import { CONFIG, ELEMENT_CONFIG, ENEMIES, EXPLOSION, HERO_MECHANICS, ULTIMATE } from './config';
 import { stageScale } from './scaling';
+import { addFeedback, hitFeedback } from './feedback';
 import { navigationDirection, prepareNavigation } from './navigation';
 import { blocked, distanceSq } from './spatial';
 import type { Enemy, SkillId, WorldAccess } from './types';
@@ -8,9 +9,11 @@ export function damageEnemy(world: WorldAccess, enemy: Enemy, amount: number, sk
   if (enemy.hp <= 0 || amount <= 0) return;
   const p = world.state.player;
   // 暴击作用于全部玩家伤害，掷骰走模拟随机流以保持种子确定性；暴击率为 0 时不消耗随机数。
-  if (skillId !== 'explosion' && p.critChance > 0 && world.random() < p.critChance) amount *= p.critMultiplier;
+  const critical = skillId !== 'explosion' && p.critChance > 0 && world.random() < p.critChance;
+  if (critical) amount *= p.critMultiplier;
   const actual = Math.min(enemy.hp, amount);
   enemy.hp = Math.max(0, enemy.hp - amount);
+  hitFeedback(world.state, enemy, actual, critical);
   if (enemy.kind === 'exploder' && enemy.hp === 0 && !enemy.explosionArmed && skillId !== 'explosion') {
     enemy.explosionArmed = true;
     const scale = stageScale(world.state.stage).damage;
@@ -113,6 +116,9 @@ export function collectDeaths(world: WorldAccess): void {
     const explosion = s.explosions.find(pending => pending.sourceId === enemy.id);
     if (explosion) { explosion.x = enemy.x; explosion.y = enemy.y; }
     s.kills++;
+    // Exploders become ghosts, so avoid a misleading shatter animation.
+    if (!explosion) addFeedback(s, { kind: 'death', x: enemy.x, y: enemy.y, radius: enemy.radius,
+      enemyKind: enemy.kind, targetId: enemy.id, duration: enemy.kind.startsWith('elite') ? .38 : .28 });
     const config = ENEMIES[enemy.kind];
     s.player.energy = Math.min(100, s.player.energy + config.energy);
     // 生命汲取（稀有卡）：仅在存活时按击杀回复，避免复活倒计时期间被治疗打断。
@@ -168,6 +174,7 @@ export function resolveResult(world: WorldAccess): void {
     else s.result = 'death';
   } else if (!s.bossDefeated && s.time >= CONFIG.timeout) s.result = 'timeout';
   if (s.result) {
+    s.feedback.length = 0;
     s.projectiles.length = 0;
     s.effects.length = 0;
     s.choices = [];

@@ -2,6 +2,7 @@ import { ACTIVE, CHARACTERS, CONFIG, DIRECTOR, ENEMIES, STAGES } from './config'
 import { collectDeaths, damageEnemy, damagePlayer, resolveResult, updateExplosions, updateStatuses } from './combat';
 import { Director, updateEnemies } from './director';
 import { Progression } from './progression';
+import { addFeedback, updateFeedback } from './feedback';
 import { SeededRandom } from './random';
 import { stageScale } from './scaling';
 import { activateSkill, activateUltimate, canAutoActivate, updateEffects, updateProjectiles, updateSkills, updateUltimate } from './skills';
@@ -38,7 +39,7 @@ export class GameWorld implements WorldAccess {
         dodge: innate.dodge ?? 0, armor: innate.armor ?? 0, luck: innate.luck ?? 0, lifesteal: innate.lifesteal ?? 0,
         dashTime: 0, dashRemaining: 0, dashDirection: { x: 0, y: -1 }, skills: [character.base, character.startingAoe].map(id => ({ id, level: 1, cooldown: 0, elements: [], enhanced: false })),
       },
-      enemies: [], explosions: [], projectiles: [], pickups: [], effects: [], obstacles: makeObstacles(terrainRandom.next), time: 0,
+      enemies: [], explosions: [], projectiles: [], pickups: [], effects: [], feedback: [], obstacles: makeObstacles(terrainRandom.next), time: 0,
       kills: 0, level: 1, xp: 0, xpRequired: 10, pendingUpgrades: 0, choices: [], rerolls: CONFIG.maxRerolls,
       result: null, event: null, damageBySkill: {}, phase: STAGES[0].name, paused: false,
       bossSpawned: false, bossDefeated: false, eliteKills: 0, warning: null, viewport: { x: 1000, y: 700 }, autoSkill: false,
@@ -131,6 +132,11 @@ export class GameWorld implements WorldAccess {
       ...overrides,
     };
     this.state.projectiles.push(shot);
+    if (shot.owner === 'player' && !this.state.feedback.some(f => f.kind === 'attack' && f.life > .04)) {
+      const speed = Math.hypot(shot.vx, shot.vy) || 1;
+      addFeedback(this.state, { kind: 'attack', x: shot.x, y: shot.y, radius: 10, duration: .1,
+        direction: { x: shot.vx / speed, y: shot.vy / speed } });
+    }
     return shot;
   }
   addEffect(data: Partial<Effect> & Vec): Effect | null {
@@ -158,6 +164,7 @@ export class GameWorld implements WorldAccess {
   private step(dt: number, input: Input): void {
     const s = this.state, p = s.player;
     s.time += dt;
+    updateFeedback(s, dt);
     p.invulnerable = Math.max(0, p.invulnerable - dt);
     p.skillCooldown = Math.max(0, p.skillCooldown - dt);
     p.skillDuration = Math.max(0, p.skillDuration - dt);
@@ -211,6 +218,7 @@ export class GameWorld implements WorldAccess {
   /** 复活瞬间：满血、短暂无敌，并移除复活半径内的普通敌人（不给经验与掉落，避免复活即秒死）。 */
   private revivePlayer(): void {
     const s = this.state, p = s.player;
+    s.feedback.length = 0;
     p.hp = p.maxHp;
     p.invulnerable = CONFIG.reviveInvulnerable;
     const radiusSq = CONFIG.reviveClearRadius ** 2;
@@ -224,6 +232,7 @@ export class GameWorld implements WorldAccess {
   /** 击破首领：清场、回到地图中心并获得短暂无敌，随后弹出大礼包三选一。 */
   private beginStageClear(): void {
     const s = this.state, p = s.player;
+    s.feedback.length = 0;
     s.enemies.length = 0; s.projectiles.length = 0; s.effects.length = 0; s.explosions.length = 0; s.event = null;
     p.x = CONFIG.mapSize / 2; p.y = CONFIG.mapSize / 2; p.shield = 0; p.shieldTime = 0;
     // 首领可能在复活等待期间被持续伤害击杀，通关时补满生命并结束倒计时。
@@ -236,6 +245,7 @@ export class GameWorld implements WorldAccess {
   /** 选择大礼包后推进到下一关，重置时间轴与首领状态，保留等级、技能与属性成长。 */
   private beginNextStage(): void {
     const s = this.state, p = s.player;
+    s.feedback.length = 0;
     s.stage++;
     s.time = 0; s.bossSpawned = false; s.bossDefeated = false; s.warning = null;
     s.projectiles.length = 0; s.effects.length = 0; s.explosions.length = 0;

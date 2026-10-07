@@ -22,6 +22,7 @@ export interface Enemy extends Vec {
   lastThermal: Map<SkillId, number>; summoned: boolean; eventEnemy: boolean; bossPattern: number; summonTimer: number;
   explosionArmed: boolean; orbitHits: Map<number, number>; hitPlayer: boolean; avoidSide: number; attackDirection: Vec;
   weaveHitAt?: number;
+  feedbackAt?: number;
 }
 export interface Projectile extends Vec {
   id: number; attackId: number; owner: 'player' | 'enemy'; skillId: SkillId | 'enemy';
@@ -45,7 +46,14 @@ export interface UpgradeChoice {
 export interface MapEvent extends Vec { kind: 'elite' | 'charge'; remaining: number; progress: number; enemyId: number | null }
 export type GameResult = 'victory' | 'death' | 'timeout' | null;
 export interface PendingExplosion extends Vec { sourceId: number; remaining: number; radius: number; damage: number; playerDamage: number; ghost: Enemy }
+/** Pure decoration: no entity IDs, combat budget or random stream. */
+export interface CombatFeedback extends Vec {
+  kind: 'hit' | 'damage' | 'death' | 'attack' | 'chain';
+  life: number; duration: number; radius: number;
+  targetId?: number; amount?: number; critical?: boolean; enemyKind?: EnemyKind; direction?: Vec;
+}
 export interface GameState {
+  feedback: CombatFeedback[];
   player: Player; enemies: Enemy[]; explosions: PendingExplosion[]; projectiles: Projectile[]; pickups: Pickup[]; effects: Effect[]; obstacles: Obstacle[];
   time: number; kills: number; level: number; xp: number; xpRequired: number; pendingUpgrades: number;
   choices: UpgradeChoice[]; rerolls: number; result: GameResult; event: MapEvent | null;

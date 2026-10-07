@@ -1,6 +1,7 @@
 import { ACTIVE, CHARACTERS, CONFIG, HERO_MECHANICS, SKILLS, ULTIMATE } from './config';
 import { activateHeroSkill, activateHeroUltimate, canCollapseWeave, fireHeroSkill, updateHeroEffect, updateHeroUltimate } from './heroes';
 import { skillDamage } from './progression';
+import { addFeedback } from './feedback';
 import { blocked, direction, distanceSq } from './spatial';
 import type { Enemy, Projectile, SkillId, SkillState, Vec, WorldAccess } from './types';
 
@@ -168,9 +169,13 @@ function fireSkill(world: WorldAccess, skill: SkillState): boolean {
       if (!candidates.length) break;
       current = candidates[0]; chain.push(current);
     }
+    let previous: Vec = p;
     for (const enemy of chain) {
+      addFeedback(world.state, { kind: 'chain', x: previous.x, y: previous.y, radius: Math.sqrt(distanceSq(previous, enemy)),
+        duration: .12, direction: { x: enemy.x - previous.x, y: enemy.y - previous.y } });
       world.damage(enemy, damage, skill.id);
       world.addEffect({ x: enemy.x, y: enemy.y, kind: 'blast', skillId: skill.id, radius: 18, life: .15 });
+      previous = enemy;
     }
   } else if (skill.id === 'meteor') {
     const candidates = [...world.nearby(p, config.range)];

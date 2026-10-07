@@ -1,47 +1,36 @@
 # Shape Siege · 当前交接文档
 
-更新日期：2026-10-07。唯一版本来源 VERSION，本地与已验证线上均为 0.14.0，功能提交 2a10d8e，工作流 37556175299 成功。本轮按用户批准方案重做织阵，使其与地雷区分。
+更新日期：2026-10-07。唯一版本来源 VERSION，当前本地 0.15.0；上一线上已验证版本为 0.14.0。当前工作：用户批准适度战斗特效，强调不影响视觉和体验。
 
-## 交付规则
+## 当前修改与关键文件
 
-遵循 AGENTS.md：检查 diff、必要验证、SemVer、CHANGELOG 与本交接、Conventional Commit。用户长期授权大更新验证后自动更新 Pages；本轮织阵重做已验证并发布，明确要求暂不发布时遵循最新指令。
+- src/game/feedback.ts、types.ts：独立装饰队列总上限 64，伤害标签 24，为死亡预留 8 槽；短时间命中合并，不延长标签寿命，不消耗实体编号与战斗随机流。
+- combat.ts：依据实际扣血显示数字/暴击、受击节流、一次死亡碎片；亡灵爆炸怪不碎裂，原有伤害与掉落保持。
+- world.ts、skills.ts：节流发射亮线、连锁闪电连接，模拟时间推进反馈；暂停/升级/礼包冻结，复活、结算、换关清理。
+- render/geometry.ts：弹体短尾、受击亮边和两条碎光、射线淡出、横扫弧、冲击扩散；普通死亡 3 条碎片、精英 5 条。屏内最多 10 标签/18 装饰，低画质 4/6，数字避让；减少动态效果关闭新闪烁、上浮、飞散、拖尾。危险图层最上层，无新增震屏。
+- tests/feedback.test.ts：实际伤害、暴击、合并寿命、死亡一次、亡灵、容量与预警、暂停/过期/换关/失败、减少动态效果。
+- 设计：docs/superpowers/specs/2026-10-07-combat-feedback-design.md。用户在会话中已批准设计并要求视觉克制。
 
-## 本轮织阵重做
+## 本轮验证
 
-- 共用几何 src/game/weave.ts：顺序相邻连线、墙壁/360 距离断线、面积/自交检查闭环、线与多边形命中；复用 spatial 的点线距离/多边形/交叉判定。
-- heroes/config/types/skills 接入移动布点（70 间距、6/8 容量、8 秒存活）、穿线每敌 0.65 秒一次 32 伤害及 0.6 秒减速、阵线收束（120，闭环包含内部）、五芒阵（固定五边形、0.5 秒 24、3 秒单次 150）。普通技能冷却仍 8 秒，自动收束避免过早消耗未形成阵线。
-- render/geometry 画实际有效连线、闭环浅填充、节点、五芒线与收束动画；UI 和 README 改名及玩法说明；地雷和其他英雄保留。批准设计 docs/superpowers/specs/2026-10-07-weave-redesign.md。
-- npm test 125 项、类型检查/生产构建通过。英雄测试扩展站立/容量替换/强化立即生效/过期、单敌多线/减速/墙壁、开放链/闭环/自交、收束一次伤害/消耗、大招持续/固定/五边形边界/首领减速/最终一次爆发。
-- 织阵 casual 回放种子 20261006/73/991：3/3 通关，267/253/252 秒，均剩 3 命。属于脚本策略证据，不能视作真人胜率或性能达标。
-- Chrome 390×844 本地诊断页面展示完整闭环与五芒阵；收束阵内生命 3000→2880、阵外保持 3000，首次五芒脉冲到 2856，未发现 Console error；正式生产预览中织阵的新技能栏和按钮也验证通过。诊断在 .superpowers/weave-preview.html（忽略产物），不属于正式产品对局。
+- 已验证：npm test 134 项通过；npm run build 包含类型检查与生产构建通过。沿用既有 Phaser 大文件提示，无新依赖。
+- 已验证：Chrome 本地诊断对比默认/低画质/减少动态效果，实际战斗结算生成的反馈与红色预警清晰，三幅画布均正常。诊断页 .superpowers/combat-preview.html、截图 .superpowers/screenshots/combat-feedback-v0.15.0.png 是忽略产物，不代表正式对局或真人测试。
+- 诊断页初次 Phaser 导入方式错误已修正；后续无新增 Console error。正式 v0.15.0 生产预览棱镜对局初始化、技能栏及实际自动攻击正常，00:02 达到 2 击杀，无正式对局 Console error。预览期间重建曾使旧页引用的动态包失效，刷新最终构建后恢复，不属于产品代码故障。
+- 尚未验证：iOS Safari / Android Chrome 真机兼容、手机后期高压帧耗时、真人平衡；不能声称手机性能达标。
 
-## 保留的六英雄与关键文件
+## 保留玩法与历史已验证状态
 
-原有三英雄保持功能与解锁条件，新增菱形、五边形、六边形初始可选。
+- 六英雄、随机多边形地图、连续闯关、经验多颗掉落、亡灵爆炸怪、下半屏全宽浮动摇杆、存档迁移与版本公告保持。织阵移动连线/闭环收束/固定五芒阵沿用 0.14.0。
+- 上一版本 0.14.0 功能提交 2a10d8e，Actions 37556175299 测试/构建/部署成功，线上公告和织阵技能栏验证通过。这是历史发布证据，不是本轮测试。
+- 过去脚本回放结果不代表真人胜率；过去手机浏览器布局诊断不代表真机性能验收。
 
-- 菱形：100 生命/225 移速/15% 暴击。射线优先精英/首领，命中折射；镜面跃迁不穿墙，两秒普通怪镜像；大招 0.6 秒预警后宽射线。地形截断与渲染长度一致。
-- 五边形：140 生命/200 移速/8% 冷却缩减/幸运 1。追踪符点与符点连阵、阵线收束、固定五芒阵；详见本轮规则。
-- 六边形：210 生命/165 移速/护甲 2/伤害加成 8%。扇形横扫、击退裂纹；蓄力 0.4 秒期间减伤 25%，随后重击；五秒过载提高横扫频率和范围，结束震地。实心六边形/锤标记区别于首领。
-- 新逻辑集中 src/game/heroes.ts，skills/director/combat 通过入口接入；types/config 定义统一属性，storage 迁移初始角色，menu/shared/geometry 补齐六角色与图形，保留原设置与成绩。
-- 原有随机地形、浮动摇杆、经验颗粒、亡灵爆炸怪、连续闯关和首次公告保留。旧版变化见 CHANGELOG；设计见 docs/superpowers/specs/2026-10-07-six-heroes-mobile-design.md。
+## Git / 发布状态与下一步
 
-## 验证
+Git main；仓库 https://github.com/somebodyvipvip-a11y/shape-siege；Pages https://somebodyvipvip-a11y.github.io/shape-siege/。
+本轮 0.15.0 待提交/发布确认，遵循用户长期授权：新增主要功能完成验证后推送并更新 Pages，无需再次询问。纯发布状态补记不升级版本。
+下一步：检查最终 diff → 提交 → 推送 → 确认对应 Actions 的 build/deploy 成功与线上 v0.15.0 → 补记发布状态。
 
-- npm test：125 项通过，包含技能容量奖励空槽刷新回归（修复前失败，修复后通过）。tests/heroes.test.ts 覆盖迁移、射线/折射/地形、闪现镜像、延迟、法阵容量/单次伤害/减速/引爆、固定阵地、扇形/减伤/过载、暂停与清场。
-- npm run build：类型检查与构建通过，既有 Phaser 大文件提示保留。
-- 三新角色，各种子 20261006/73/991、随机选牌/真实生命/自动普通技能：9/9 脚本通关，251–276 秒，不代表真人胜率。输出在忽略的 .superpowers/balance-results.json。scripts/balance.replay.ts 支持 BALANCE_CHARACTERS 指定角色，默认覆盖六个。
-- 初次浏览器自动审批超时后，本地验收恢复。Chrome 生产预览验证新角色选择、暂停、属性菜单；320×568/360×800 竖屏，800×400/521×320 横屏布局与 DOM 尺寸检查。诊断场景检查六槽、元素、99 关、99999 击杀、首领/预警/事件同时存在，无越界重叠。真实手机安全区与兼容性能尚未验收。
+## 启动与后续维护
 
-## 发布与尚需验证
-
-1. 手机布局已修复：44px 状态/按钮、等宽技能槽、横屏适配、提示区域与复活倒计时分离；全量属性通过按钮查看。历史英雄提交 69323c5，手机排版 2656416，下半屏全宽操控 d20ca85 已保留。
-2. 上轮 0.13.1 发布已完成：工作流 37498955633 的测试、构建、部署成功；线上公告 v0.13.1、六英雄入口及 360×800 六边形对局验证，暂停/属性按钮 44×44。截图 .superpowers/screenshots/pages-v0.13.1-mobile.png（本地忽略产物）。
-3. 真机 iOS Safari/Android Chrome、真人平衡、手机后期帧耗时仍待验证。
-
-## 启动与发布
-
-Node.js 24/npm 11，PowerShell：npm ci；npm run dev；npm test；npm run build。VERSION 改动后重启 dev；可用 npm exec vite preview -- --host 127.0.0.1 --port 4173 预览生产包，端口以输出为准。
-
-Git main，仓库 https://github.com/somebodyvipvip-a11y/shape-siege，Pages https://somebodyvipvip-a11y.github.io/shape-siege/。推送触发 pages.yml 安装、测试、构建、部署，PAGES_ENABLED=true。0.13.1 最终工作流 37499364169 成功；0.13.2 最终提交 06cde7b 与工作流 37502097136 成功；本轮 0.14.0 已上线：2a10d8e，工作流 37556175299 测试/构建/部署成功；线上公告、织阵正式对局、符点连阵技能槽/阵线收束按钮/五芒封锁验证通过，初始化无错误。闭环截图 .superpowers/screenshots/weave-v0.14.0-loop.png 为本地诊断场景，不能当作真人对局。后续仅发布记录补记不改动 VERSION。
-
-回放：设置 BALANCE_POLICY=casual 和可选 BALANCE_CHARACTERS=diamond,pentagon,hexagon，运行 npm exec vitest run -- --config scripts/balance.config.ts，结束清除环境变量。无账号/联机/局中保存，localStorage 为浏览器独立存档。
+Windows PowerShell：npm ci；npm run dev；npm test；npm run build。VERSION 改动后重启开发服务器；生产预览 npm exec vite preview -- --host 127.0.0.1 --port 4173。
+每次独立修改按 AGENTS.md 更新 VERSION、根 CHANGELOG 和本交接，验证后创建 Conventional Commit。main 推送触发 pages.yml，PAGES_ENABLED=true。无账号、联机或局中保存；localStorage 为浏览器独立存档。

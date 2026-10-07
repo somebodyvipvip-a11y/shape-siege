@@ -19,11 +19,11 @@ const DIGIT_SEGMENTS: Record<string, number[]> = {
 };
 const SEGMENT_LINES: readonly [number, number, number, number][] = [[0, 0, 1, 0], [1, 0, 1, .5], [1, .5, 1, 1], [0, 1, 1, 1], [0, .5, 0, 1], [0, 0, 0, .5], [0, .5, 1, .5]];
 // 用七段式矢量数字把生命值画在敌人身上，避免为每个敌人创建 Text 对象带来的开销。
-export function drawNumber(g: Graphics, x: number, y: number, value: number, height: number): void {
+export function drawNumber(g: Graphics, x: number, y: number, value: number, height: number, color = 0xf2f5fa, alpha = .92): void {
   const text = String(Math.max(0, Math.ceil(value))), width = height * .58, gap = height * .5;
   let left = x - (text.length * width + (text.length - 1) * gap) / 2;
   const top = y - height / 2;
-  g.lineStyle(Math.max(1, height * .17), 0xf2f5fa, .92);
+  g.lineStyle(Math.max(1, height * .17), color, alpha);
   for (const character of text) {
     for (const segment of DIGIT_SEGMENTS[character] ?? []) {
       const [x1, y1, x2, y2] = SEGMENT_LINES[segment];
@@ -33,7 +33,8 @@ export function drawNumber(g: Graphics, x: number, y: number, value: number, hei
   }
 }
 function enemy(g: Graphics, e: Enemy, time: number, reduced: boolean): void {
-  const color = e.kind === 'exploder' ? PALETTE.explosion : e.burn ? 0xffa568 : e.slowTime > 0 ? 0x91cfff : PALETTE.enemy;
+  const hit = !reduced && e.feedbackAt !== undefined && time - e.feedbackAt < .09;
+  const color = hit ? 0xffe4e9 : e.kind === 'exploder' ? PALETTE.explosion : e.burn ? 0xffa568 : e.slowTime > 0 ? 0x91cfff : PALETTE.enemy;
   const pulse = e.kind === 'exploder' && e.explosionArmed && !reduced ? .65 + .35 * Math.cos(time * Math.PI * 3) : 1;
   g.fillStyle(0x311e35, 1); g.lineStyle(e.kind === 'boss' ? 3 : 2, color, pulse);
   if (e.kind === 'boss') {
@@ -130,10 +131,12 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
   }
   for (const effect of state.effects) {
     if (effect.owner !== 'player' || !visible(effect, Math.max(effect.radius, effect.length ?? 0))) continue;
-    if (drawHeroEffect(g, effect, color)) continue;
+    if (drawHeroEffect(g, effect, color, settings.reducedMotion)) continue;
     const effectColor = effect.skillId === 'explosion' ? PALETTE.explosion : effect.skillId === 'lightning' ? PALETTE.gold : color;
     g.lineStyle(effect.kind === 'field' ? 2 : 1.5, effectColor, .5); g.fillStyle(effectColor, effect.kind === 'field' ? .04 : .075);
-    g.fillCircle(effect.x, effect.y, effect.radius); g.strokeCircle(effect.x, effect.y, effect.radius);
+    const progress = Math.max(0, Math.min(1, 1 - effect.life / .22));
+    const radius = effect.kind === 'blast' && !settings.reducedMotion ? effect.radius * (.65 + .35 * progress) : effect.radius;
+    g.fillCircle(effect.x, effect.y, radius); g.strokeCircle(effect.x, effect.y, radius);
     if (effect.kind === 'mine') { polygon(g, effect.x, effect.y, 12, 6, -Math.PI / 2, false); }
     if (effect.kind === 'warning') { g.lineBetween(effect.x - 7, effect.y, effect.x + 7, effect.y); g.lineBetween(effect.x, effect.y - 7, effect.x, effect.y + 7); }
   }
@@ -154,7 +157,7 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
     if (!visible(shot, 15)) continue;
     const shotColor = shot.owner === 'enemy' ? PALETTE.enemy : shot.skillId === 'homing' ? PALETTE.xp : color;
     g.fillStyle(shotColor, shot.owner === 'enemy' ? 1 : .75); g.lineStyle(1.5, shot.owner === 'enemy' ? 0xffcad0 : shotColor, 1);
-    if (settings.quality !== 'low') { g.lineStyle(2, shotColor, .25); const length = Math.hypot(shot.vx, shot.vy) || 1; g.lineBetween(shot.x, shot.y, shot.x - shot.vx / length * 18, shot.y - shot.vy / length * 18); }
+    if (settings.quality !== 'low' && !settings.reducedMotion) { g.lineStyle(2, shotColor, .25); const length = Math.hypot(shot.vx, shot.vy) || 1; const tail = Math.min(22, shot.age * length); g.lineBetween(shot.x, shot.y, shot.x - shot.vx / length * tail, shot.y - shot.vy / length * tail); }
     g.lineStyle(1.5, shot.owner === 'enemy' ? 0xffcad0 : shotColor, 1);
     if (shot.skillId === 'base-triangle' || shot.mode === 'boomerang') polygon(g, shot.x, shot.y, shot.radius, 3, Math.atan2(shot.vy, shot.vx));
     else if (shot.owner === 'enemy') polygon(g, shot.x, shot.y, shot.radius, 4);
@@ -162,6 +165,7 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
     if (shot.owner === 'player') drawElements(g, shot.x, shot.y, shot.radius + 2, p.skills.find(skill => skill.id === shot.skillId)?.elements ?? []);
   }
   for (const e of state.enemies) if (e.hp > 0 && visible(e, e.radius + 30)) enemy(g, e, state.time, settings.reducedMotion);
+  drawFeedback(g, state, settings, visible);
   if (settings.quality !== 'low') { g.fillStyle(color, .075); g.fillCircle(p.x, p.y, 33); }
   g.lineStyle(1.5, color, .65); g.strokeCircle(p.x, p.y, p.radius + 9);
   if (p.shield > 0) { g.lineStyle(2.5, PALETTE.square, .8); g.strokeCircle(p.x, p.y, p.radius + 15); }
@@ -202,7 +206,7 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
     }
   }
 }
-function drawHeroEffect(g: Graphics, effect: Effect, color: number): boolean {
+function drawHeroEffect(g: Graphics, effect: Effect, color: number, reduced: boolean): boolean {
   if (!['beam', 'sweep', 'sigil', 'web', 'weave', 'decoy'].includes(effect.kind)) return false;
   if (effect.life <= 0) return true;
   const pending = effect.delay > 1e-8 && !effect.triggered;
@@ -211,11 +215,16 @@ function drawHeroEffect(g: Graphics, effect: Effect, color: number): boolean {
     const d = effect.direction!, length = effect.length ?? 0, r = effect.radius;
     const points = [{ x: effect.x - d.y * r, y: effect.y + d.x * r }, { x: effect.x + d.x * length - d.y * r, y: effect.y + d.y * length + d.x * r }, { x: effect.x + d.x * length + d.y * r, y: effect.y + d.y * length - d.x * r }, { x: effect.x + d.y * r, y: effect.y - d.x * r }];
     g.fillPoints(points, true); g.strokePoints(points, true);
-    if (!pending) { g.lineStyle(Math.max(2, r), color, .8); g.lineBetween(effect.x, effect.y, effect.x + d.x * length, effect.y + d.y * length); }
+    if (!pending) { g.lineStyle(Math.max(2, r), color, .8 * Math.min(1, effect.life / .12)); g.lineBetween(effect.x, effect.y, effect.x + d.x * length, effect.y + d.y * length); }
   } else if (effect.kind === 'sweep') {
     const angle = Math.atan2(effect.direction!.y, effect.direction!.x), half = (effect.angle ?? Math.PI) / 2;
     const points = [{ x: effect.x, y: effect.y }, ...Array.from({ length: 17 }, (_, i) => ({ x: effect.x + Math.cos(angle - half + i * half / 8) * effect.radius, y: effect.y + Math.sin(angle - half + i * half / 8) * effect.radius }))];
     g.fillPoints(points, true); g.strokePoints(points, true);
+    if (!pending && !reduced) {
+      const progress = Math.max(0, Math.min(1, 1 - effect.life / .22));
+      g.lineStyle(3, color, .65 * (1 - progress)); g.beginPath();
+      g.arc(effect.x, effect.y, effect.radius * .9, angle - half, angle - half + Math.max(.02, progress * half * 2)); g.strokePath();
+    }
   } else if (effect.kind === 'sigil') {
     g.fillStyle(color, .18); g.lineStyle(1.5, color, .8); polygon(g, effect.x, effect.y, 10, 5);
     g.fillStyle(color, .8); g.fillCircle(effect.x, effect.y, 3);
@@ -231,6 +240,59 @@ function drawHeroEffect(g: Graphics, effect: Effect, color: number): boolean {
       effect.x + (points[i + 1].x - effect.x) * scale, effect.y + (points[i + 1].y - effect.y) * scale);
   } else { g.fillStyle(color, .08); g.lineStyle(1.5, color, .5); polygon(g, effect.x, effect.y, effect.radius, 4, 0); }
   return true;
+}
+function drawFeedback(g: Graphics, state: GameState, settings: Settings, visible: (point: Vec, radius?: number) => boolean): void {
+  let labels = 0, decorations = 0;
+  const occupied: { x: number; y: number; width: number }[] = [];
+  const low = settings.quality === 'low', reduced = settings.reducedMotion;
+  // Newest visible events win. Separate label/decoration budgets keep crowded fights legible.
+  for (let i = state.feedback.length - 1; i >= 0; i--) {
+    const f = state.feedback[i];
+    if (!visible(f, f.radius + 40)) continue;
+    const progress = 1 - f.life / f.duration, alpha = Math.min(1, f.life / .14);
+    if (f.kind === 'damage') {
+      if (labels >= (low ? 4 : 10)) continue;
+      // Fractional burn ticks accumulate; never display a misleading stream of rounded-up ones.
+      if ((f.amount ?? 0) < 1) continue;
+      const y = f.y - (reduced ? 0 : progress * 22);
+      const amount = Math.round(f.amount ?? 0), height = f.critical ? 16 : 14, digits = String(amount).length;
+      const width = (digits * height * .58 + (digits - 1) * height * .5) / 2 + 10;
+      if (occupied.some(other => Math.abs(other.x - f.x) < other.width + width && Math.abs(other.y - y) < 18)) continue;
+      occupied.push({ x: f.x, y, width });
+      labels++;
+      const color = f.critical ? PALETTE.gold : 0xffb8c3;
+      g.lineStyle(1.5, color, alpha * .85); g.lineBetween(f.x - width, y, f.x - width + 4, y);
+      drawNumber(g, f.x, y, amount, height, color, alpha * .85);
+      continue;
+    }
+    if (decorations++ >= (low ? 6 : 18)) continue;
+    if (f.kind === 'chain') {
+      if (reduced) continue;
+      g.lineStyle(1.5, PALETTE.gold, alpha * .6);
+      g.lineBetween(f.x, f.y, f.x + f.direction!.x, f.y + f.direction!.y);
+    } else if (f.kind === 'death') {
+      const color = f.enemyKind === 'exploder' ? PALETTE.explosion : PALETTE.enemy;
+      g.lineStyle(1.5, color, alpha * .5);
+      if (low || reduced) { polygon(g, f.x, f.y, f.radius, 4, Math.PI / 4, false); continue; }
+      const count = f.enemyKind?.startsWith('elite') ? 5 : 3;
+      for (let j = 0; j < count; j++) {
+        const angle = j * Math.PI * 2 / count + (f.targetId ?? f.x) * .1;
+        const radius = f.radius * (.5 + progress * .7);
+        const x = f.x + Math.cos(angle) * radius, y = f.y + Math.sin(angle) * radius;
+        g.lineBetween(x, y, x + Math.cos(angle + .8) * 6, y + Math.sin(angle + .8) * 6);
+      }
+    } else if (!low && !reduced && f.kind === 'hit') {
+      const target = state.enemies.find(e => e.id === f.targetId);
+      const x = target?.x ?? f.x, y = target?.y ?? f.y;
+      g.lineStyle(1.5, f.critical ? PALETTE.gold : 0xffe4e9, alpha * .65);
+      for (let j = 0; j < 2; j++) { const sign = j ? -1 : 1; g.lineBetween(x + sign * (f.radius + 2), y - 3, x + sign * (f.radius + 7), y - 6); }
+    } else if (!low && !reduced && f.kind === 'attack') {
+      const d = f.direction!;
+      g.lineStyle(2, PALETTE[state.player.characterId], alpha * .45);
+      const x = f.x + d.x * (state.player.radius + 4), y = f.y + d.y * (state.player.radius + 4);
+      g.lineBetween(x - d.y * 4, y + d.x * 4, x + d.y * 4, y - d.x * 4);
+    }
+  }
 }
 function drawElements(g: Graphics, x: number, y: number, radius: number, elements: ('fire' | 'ice' | 'lightning')[]): void {
   const colors = { fire: 0xffa568, ice: 0x91d8ff, lightning: 0xffd36a };
