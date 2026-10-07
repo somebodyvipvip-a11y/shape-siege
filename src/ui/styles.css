@@ -3085,6 +3085,46 @@ small {
   .ability-button,.ultimate-button { width: 64px; height: 72px; min-height: 72px }
 }
 
+/* 三选一在手机使用紧凑卡片，内容自然布局，避免固定卡高造成双层滚动。 */
+@media(max-width:520px), (max-height:550px) and (max-width:1050px) {
+  .overlay-backdrop:has(.upgrade-dialog) { padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)); align-items: center }
+  .upgrade-dialog { padding: 12px; max-height: 100%; }
+  .upgrade-heading { margin-bottom: 8px }
+  .upgrade-heading .eyebrow { display: none }
+  .upgrade-heading h2 { font-size: 18px; line-height: 24px; margin: 0 0 4px }
+  .upgrade-heading p { font-size: 11px; line-height: 16px }
+  .upgrade-dialog > .stat-strip { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; margin: 0 0 10px }
+  .upgrade-dialog > .stat-strip span { min-width: 0; padding: 3px 4px; gap: 3px; justify-content: space-between }
+  .upgrade-dialog > .stat-strip small { font-size: 9px }
+  .upgrade-dialog > .stat-strip b { font-size: 10px }
+  .upgrade-grid { gap: 6px }
+  .upgrade-card { min-height: 0; padding: 9px 10px 9px 54px; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 3px; align-content: center }
+  .upgrade-card:hover { transform: none }
+  .upgrade-card > .geo-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; margin: 0 }
+  .upgrade-kind { grid-column: 1 / -1; font-size: 10px; line-height: 13px; margin: 0; letter-spacing: 0 }
+  .upgrade-card h3 { grid-column: 1 / -1; font-size: 14px; line-height: 18px; margin: 0; overflow-wrap: anywhere }
+  .upgrade-card .upgrade-level { font-size: 10px; line-height: 14px; margin: 0; letter-spacing: 0 }
+  .upgrade-card .change-detail { font-size: 10px; line-height: 14px; margin: 0 }
+  .upgrade-card p { grid-column: 1 / -1; font-size: 11px; line-height: 16px; margin: 0; overflow-wrap: anywhere }
+  .upgrade-card .choose-label { display: none }
+  .upgrade-footer { margin-top: 8px; gap: 6px; font-size: 10px }
+  .upgrade-footer .secondary-button { min-height: 44px; font-size: 11px; padding: 0 10px }
+}
+@media(max-height:550px) and (min-width:521px) and (max-width:1050px) {
+  .overlay-backdrop:has(.upgrade-dialog) { padding-top: calc(8px + env(safe-area-inset-top)); padding-bottom: calc(8px + env(safe-area-inset-bottom)) }
+  .upgrade-dialog { padding: 8px 10px }
+  .upgrade-heading { margin-bottom: 6px }
+  .upgrade-heading h2 { font-size: 16px; line-height: 20px; margin-bottom: 2px }
+  .upgrade-heading p { font-size: 10px; line-height: 13px }
+  .upgrade-dialog > .stat-strip { grid-template-columns: repeat(5,minmax(0,1fr)); margin-bottom: 6px }
+  .upgrade-card { padding: 8px; align-content: start }
+  .upgrade-card > .geo-icon { display: none }
+  .upgrade-card .upgrade-level,.upgrade-card .change-detail { grid-column: 1 / -1 }
+  .upgrade-card h3 { font-size: 13px; line-height: 16px }
+  .upgrade-card p { font-size: 11px; line-height: 14px }
+  .upgrade-footer { margin-top: 6px }
+}
+
 @media(prefers-reduced-motion:reduce) {
   .orbit-outer,.ultimate-button.ready {
     animation: none

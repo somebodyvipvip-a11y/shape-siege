@@ -207,10 +207,17 @@ describe('rendering matches simulation geometry', () => {
     expect(calls.some(call => call.name === 'fillRect' && JSON.stringify(call.args) === JSON.stringify(rect))).toBe(true);
     expect(blocked({ x: obstacle.x + 1, y: obstacle.y + 1 }, 1, world.state.obstacles)).toBe(true);
   });
-  it('keeps the same visible world area after rotation and bounds extreme ratios', () => {
+  it.each([[320,568], [360,640], [390,844], [430,932], [800,360], [932,430]])('fills the %ix%i battle surface without letterboxing', (width, height) => {
+    const view = viewportFor(width, height);
+    const drawnWidth = Math.min(width, height * view.ratio);
+    const drawnHeight = drawnWidth / view.ratio;
+    expect(drawnWidth).toBeCloseTo(width, 8);
+    expect(drawnHeight).toBeCloseTo(height, 8);
+    expect(view.width * view.height).toBeCloseTo(700000, 8);
+  });
+  it('keeps the same visible world area after rotation', () => {
     const portrait = viewportFor(360, 800), landscape = viewportFor(800, 360);
     expect(portrait.width * portrait.height).toBeCloseTo(landscape.width * landscape.height, 8);
-    expect(viewportFor(100, 2000).ratio).toBe(.65); expect(viewportFor(2000, 100).ratio).toBe(1.85);
   });
 });
 

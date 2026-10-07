@@ -25,10 +25,9 @@ export function createBattleRenderer(host: HTMLElement, world: GameWorld, settin
       }
       layout(width: number, height: number): void {
         const view = viewportFor(width, height);
-        const effectiveW = Math.min(width, height * view.ratio), effectiveH = effectiveW / view.ratio;
         const camera = this.cameras.main;
-        camera.setViewport((width - effectiveW) / 2, (height - effectiveH) / 2, effectiveW, effectiveH);
-        camera.setZoom(effectiveW / view.width); world.setViewport(view.width, view.height);
+        camera.setViewport(0, 0, width, height);
+        camera.setZoom(width / view.width); world.setViewport(view.width, view.height);
       }
       update(_time: number, delta: number): void {
         if (disposed || !ready) return;
