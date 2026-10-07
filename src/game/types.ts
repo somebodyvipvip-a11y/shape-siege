@@ -21,6 +21,7 @@ export interface Enemy extends Vec {
   slowTime: number; slowFactor: number; burn: Burn | null; thermal: Map<SkillId, number>;
   lastThermal: Map<SkillId, number>; summoned: boolean; eventEnemy: boolean; bossPattern: number; summonTimer: number;
   explosionArmed: boolean; orbitHits: Map<number, number>; hitPlayer: boolean; avoidSide: number; attackDirection: Vec;
+  weaveHitAt?: number;
 }
 export interface Projectile extends Vec {
   id: number; attackId: number; owner: 'player' | 'enemy'; skillId: SkillId | 'enemy';
@@ -30,10 +31,11 @@ export interface Projectile extends Vec {
 }
 export interface Pickup extends Vec { id: number; kind: 'xp' | 'heal' | 'maxhp'; value: number; attracted: boolean }
 export interface Effect extends Vec {
-  id: number; attackId: number; kind: 'warning' | 'blast' | 'mine' | 'field' | 'dash' | 'beam' | 'sweep' | 'sigil' | 'web' | 'decoy';
+  id: number; attackId: number; kind: 'warning' | 'blast' | 'mine' | 'field' | 'dash' | 'beam' | 'sweep' | 'sigil' | 'web' | 'weave' | 'decoy';
   owner: 'player' | 'enemy'; skillId: SkillId | 'active' | 'ultimate' | 'explosion' | 'enemy';
   radius: number; damage: number; delay: number; life: number; triggered: boolean; hit: Set<number>;
   direction?: Vec; length?: number; angle?: number; slow?: number; knockback?: number; armed?: boolean;
+  points?: Vec[]; tick?: number;
 }
 export interface UpgradeChoice {
   id: string; name: string; description: string; kind: 'new' | 'level' | 'element' | 'behavior' | 'fusion' | 'stat';

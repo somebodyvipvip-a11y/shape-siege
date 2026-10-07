@@ -1,5 +1,5 @@
 import { ACTIVE, CHARACTERS, CONFIG, HERO_MECHANICS, SKILLS, ULTIMATE } from './config';
-import { activateHeroSkill, activateHeroUltimate, fireHeroSkill, updateHeroEffect, updateHeroUltimate } from './heroes';
+import { activateHeroSkill, activateHeroUltimate, canCollapseWeave, fireHeroSkill, updateHeroEffect, updateHeroUltimate } from './heroes';
 import { skillDamage } from './progression';
 import { blocked, direction, distanceSq } from './spatial';
 import type { Enemy, Projectile, SkillId, SkillState, Vec, WorldAccess } from './types';
@@ -28,6 +28,7 @@ function blast(world: WorldAccess, origin: Vec, radius: number, damage: number, 
 }
 export function canAutoActivate(world: WorldAccess): boolean {
   const p = world.state.player;
+  if (p.characterId === 'pentagon') return canCollapseWeave(world);
   if (p.characterId === 'hexagon') return !!nearest(world, p, HERO_MECHANICS.hexagon.activeRadius);
   if (!nearest(world, p, 300)) return false;
   if (p.characterId !== 'triangle') return true;
@@ -234,7 +235,7 @@ export function updateEffects(world: WorldAccess, dt: number): void {
   const p = world.state.player;
   for (const effect of world.state.effects) {
     effect.life -= dt; effect.delay -= dt;
-    if (updateHeroEffect(world, effect)) continue;
+    if (updateHeroEffect(world, effect, dt)) continue;
     if (effect.kind === 'field' || effect.kind === 'dash') { effect.x = p.x; effect.y = p.y; }
     if (effect.kind === 'dash') {
       for (const enemy of [...world.nearby(effect, effect.radius + 60)]) {

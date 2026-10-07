@@ -9,7 +9,7 @@ export const ROLE_TEXT: Record<CharacterId, { title: string; shape: string; subt
   square: { title: '堡垒', shape: '正方形', subtitle: '坚固护盾 / 防守', attack: '四向冲击与连锁闪电，护盾稳住阵线。', active: '护盾震退', ultimate: '守护领域', condition: '完成任意一局后解锁' },
   triangle: { title: '锋刃', shape: '三角形', subtitle: '高速穿透 / 突进', attack: '穿透飞刃与回旋刃，冲刺破阵。', active: '锋刃冲刺', ultimate: '径向刃雨', condition: '首次击杀阶段精英后解锁' },
   diamond: { title: '棱镜', shape: '菱形', subtitle: '远程射线 / 狙击', attack: '聚焦射线优先精英，命中后折射碎光。', active: '镜面跃迁', ultimate: '棱镜贯穿', condition: '初始解锁' },
-  pentagon: { title: '织阵', shape: '五边形', subtitle: '陷阱布阵 / 控制', attack: '追踪符点与延时法阵，引怪入阵再引爆。', active: '阵地引爆', ultimate: '五芒封锁', condition: '初始解锁' },
+  pentagon: { title: '织阵', shape: '五边形', subtitle: '连线布阵 / 控制', attack: '移动留下符点连线，穿线控制，闭环收束。', active: '阵线收束', ultimate: '五芒封锁', condition: '初始解锁' },
   hexagon: { title: '重锤', shape: '六边形', subtitle: '近战重击 / 爆发', attack: '扇形横扫与震地裂纹，蓄力重击破阵。', active: '蓄力猛击', ultimate: '核心过载', condition: '初始解锁' },
 };
 export function geometry(id: CharacterId | SkillId | string, className = ''): string {

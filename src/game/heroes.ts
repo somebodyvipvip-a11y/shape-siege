@@ -1,6 +1,7 @@
 import { CHARACTERS, HERO_MECHANICS as HERO, SKILLS } from './config';
 import { skillDamage } from './progression';
 import { blocked, direction, distanceSq } from './spatial';
+import { insidePolygon, touchesPath, touchesPolygon, weavePath } from './weave';
 import type { Effect, Enemy, SkillState, Vec, WorldAccess } from './types';
 
 function priorityTarget(world: WorldAccess, range: number): Enemy | undefined {
@@ -28,14 +29,20 @@ function beam(world: WorldAccess, origin: Vec, aim: Vec, length: number, radius:
   }
   world.addEffect({ ...origin, kind: 'beam', owner: 'player', skillId, radius, length: reach, direction: { ...aim }, damage, delay, knockback, life: delay + .22 });
 }
-function sigil(world: WorldAccess, position: Vec, skill: SkillState, ultimate = false): Effect | null {
-  const p = world.state.player;
-  const point = blocked(position, 12, world.state.obstacles) ? p : position;
-  return world.addEffect({ x: point.x, y: point.y, kind: 'sigil', skillId: ultimate ? 'ultimate' : 'sigil', owner: 'player',
-    radius: SKILLS.sigil.radius + (skill.level - 1) * 8 + (skill.enhanced ? 25 : 0),
-    damage: ultimate ? HERO.pentagon.webDamage * (1 + p.damageBonus) : skillDamage(world.state, 'sigil'),
-    life: ultimate ? CHARACTERS.pentagon.ultimateDuration + .25 : HERO.pentagon.sigilLife,
-    delay: ultimate ? CHARACTERS.pentagon.ultimateDuration : 0, armed: ultimate, slow: HERO.pentagon.slow });
+function sigil(world: WorldAccess, position: Vec, skill: SkillState): Effect | null {
+  if (blocked(position, 12, world.state.obstacles)) return null;
+  const nodes = world.state.effects.filter(e => e.kind === 'sigil' && e.life > 0 && !e.triggered);
+  if (nodes.length && distanceSq(nodes.at(-1)!, position) < HERO.pentagon.nodeSpacing ** 2) return null;
+  const node = world.addEffect({ ...position, kind: 'sigil', skillId: 'sigil', owner: 'player',
+    radius: SKILLS.sigil.radius + (skill.level - 1) * .5 + (skill.enhanced ? 4 : 0),
+    damage: skillDamage(world.state, 'sigil'), life: HERO.pentagon.sigilLife, slow: HERO.pentagon.slow });
+  if (node && nodes.length >= HERO.pentagon.sigilLimit + (skill.enhanced ? 2 : 0)) nodes[0].life = 0;
+  return node;
+}
+export function canCollapseWeave(world: WorldAccess): boolean {
+  const path = weavePath(world.state);
+  return path.nodes.length >= 3 && world.state.enemies.some(e => e.hp > 0 &&
+    (touchesPath(e, e.radius + path.width, path.edges) || (path.closed && insidePolygon(e, path.nodes))));
 }
 function sweep(world: WorldAccess, aim: Vec, radius: number, damage: number, skillId: Effect['skillId'], angle: number, delay = 0): void {
   const p = world.state.player;
@@ -55,9 +62,19 @@ export function activateHeroSkill(world: WorldAccess): boolean {
     return true;
   }
   if (p.characterId === 'pentagon') {
-    const traps = world.state.effects.filter(e => e.kind === 'sigil' && e.skillId === 'sigil' && !e.triggered && e.life > 0);
-    if (traps.length) for (const trap of traps) { hitArea(world, trap); trap.triggered = true; trap.life = 0; }
-    else sigil(world, p, p.skills.find(s => s.id === 'sigil')!);
+    const path = weavePath(world.state), skill = p.skills.find(s => s.id === 'sigil')!;
+    if (path.edges.length) {
+      const damage = HERO.pentagon.collapseDamage * skillDamage(world.state, 'sigil') / SKILLS.sigil.damage;
+      for (const enemy of [...world.state.enemies]) if (enemy.hp > 0 &&
+        (touchesPath(enemy, enemy.radius + path.width, path.edges) || (path.closed && insidePolygon(enemy, path.nodes)))) {
+        world.damage(enemy, damage, 'active', false);
+        enemy.slowTime = Math.max(enemy.slowTime, 2); enemy.slowFactor = Math.max(enemy.slowFactor, HERO.pentagon.slow * (enemy.kind === 'boss' ? .5 : 1));
+      }
+      const center = { x: path.nodes.reduce((sum, n) => sum + n.x, 0) / path.nodes.length, y: path.nodes.reduce((sum, n) => sum + n.y, 0) / path.nodes.length };
+      world.addEffect({ ...center, kind: 'weave', skillId: 'active', owner: 'player', radius: Math.max(...path.nodes.map(n => Math.sqrt(distanceSq(center, n)))), life: .3,
+        points: path.edges.flatMap(([a, b]) => [{ x: a.x, y: a.y }, { x: b.x, y: b.y }]) });
+      for (const node of path.nodes) { node.life = 0; node.triggered = true; }
+    } else sigil(world, p, skill);
     return true;
   }
   if (p.characterId === 'hexagon') {
@@ -76,13 +93,11 @@ export function activateHeroUltimate(world: WorldAccess): boolean {
     return true;
   }
   if (p.characterId === 'pentagon') {
-    // 同时最多一组大招法阵，通用特效上限仍由 world.addEffect 管理。
-    const skill = p.skills.find(s => s.id === 'sigil')!;
-    for (let i = 0; i < 5; i++) {
-      const angle = -Math.PI / 2 + i * Math.PI * 2 / 5;
-      sigil(world, { x: p.x + Math.cos(angle) * 130, y: p.y + Math.sin(angle) * 130 }, skill, true);
-    }
-    world.addEffect({ x: p.x, y: p.y, kind: 'web', owner: 'player', skillId: 'ultimate', radius: HERO.pentagon.webRadius, slow: HERO.pentagon.slow, life: CHARACTERS.pentagon.ultimateDuration });
+    const points = Array.from({ length: 5 }, (_, i) => ({ x: p.x + Math.cos(-Math.PI / 2 + i * Math.PI * 2 / 5) * HERO.pentagon.webRadius,
+      y: p.y + Math.sin(-Math.PI / 2 + i * Math.PI * 2 / 5) * HERO.pentagon.webRadius }));
+    world.addEffect({ x: p.x, y: p.y, kind: 'web', owner: 'player', skillId: 'ultimate', radius: HERO.pentagon.webRadius, slow: HERO.pentagon.slow,
+      points, damage: HERO.pentagon.webTickDamage * (1 + p.damageBonus), tick: HERO.pentagon.webInterval,
+      delay: CHARACTERS.pentagon.ultimateDuration, life: CHARACTERS.pentagon.ultimateDuration + .25 });
     return true;
   }
   return p.characterId === 'hexagon';
@@ -98,10 +113,7 @@ export function fireHeroSkill(world: WorldAccess, skill: SkillState): boolean | 
   const damage = skillDamage(world.state, skill.id);
   if (skill.id === 'refraction') return false; // 由聚焦射线命中触发，不独立空放。
   if (skill.id === 'sigil') {
-    const count = world.state.effects.filter(e => e.kind === 'sigil' && e.skillId === 'sigil' && !e.triggered && e.life > 0).length;
-    if (count >= HERO.pentagon.sigilLimit + (skill.enhanced ? 2 : 0)) return false;
-    sigil(world, { x: p.x - p.lastDirection.x * 46, y: p.y - p.lastDirection.y * 46 }, skill);
-    return true;
+    return !!sigil(world, { x: p.x - p.lastDirection.x * 46, y: p.y - p.lastDirection.y * 46 }, skill);
   }
   if (!['base-diamond', 'base-pentagon', 'base-hexagon', 'fissure'].includes(skill.id)) return undefined;
   const range = config.range + (skill.id === 'base-hexagon' && p.ultimateDuration > 0 ? HERO.hexagon.overdriveRange : 0);
@@ -125,20 +137,31 @@ function refract(world: WorldAccess, origin: Enemy): void {
   for (const target of targets) beam(world, origin, direction(origin, target), Math.sqrt(distanceSq(origin, target)), SKILLS.refraction.radius, skillDamage(world.state, 'refraction'), 'refraction');
 }
 /** 返回 true 表示已处理该类特效，通用技能不再重复结算。 */
-export function updateHeroEffect(world: WorldAccess, effect: Effect): boolean {
-  if (!['beam', 'sweep', 'sigil', 'web', 'decoy'].includes(effect.kind)) return false;
+export function updateHeroEffect(world: WorldAccess, effect: Effect, dt = 0): boolean {
+  if (!['beam', 'sweep', 'sigil', 'web', 'weave', 'decoy'].includes(effect.kind)) return false;
   if (effect.life <= 0) return true;
-  if (effect.kind === 'decoy') return true;
+  if (effect.kind === 'decoy' || effect.kind === 'weave') return true;
   if (effect.kind === 'web') {
-    for (const enemy of world.nearby(effect, effect.radius + 60)) if (enemy.hp > 0 && distanceSq(enemy, effect) <= (effect.radius + enemy.radius) ** 2) {
+    if (effect.triggered) return true;
+    effect.tick = (effect.tick ?? HERO.pentagon.webInterval) - dt;
+    const finale = effect.delay <= 1e-8, pulse = !finale && effect.tick <= 1e-8;
+    if (pulse) effect.tick += HERO.pentagon.webInterval;
+    for (const enemy of [...world.nearby(effect, effect.radius + 60)]) if (enemy.hp > 0 && touchesPolygon(enemy, enemy.radius, effect.points!)) {
       enemy.slowTime = Math.max(enemy.slowTime, .2); enemy.slowFactor = Math.max(enemy.slowFactor, (effect.slow ?? .3) * (enemy.kind === 'boss' ? .5 : 1));
+      if (finale || pulse) world.damage(enemy, finale ? HERO.pentagon.webDamage * (1 + world.state.player.damageBonus) : effect.damage, 'ultimate', false);
     }
+    if (finale) { effect.triggered = true; effect.life = 0; world.addEffect({ x: effect.x, y: effect.y, radius: effect.radius, owner: 'player', skillId: 'ultimate', kind: 'weave', points: effect.points!.flatMap((a, i, nodes) => [a, nodes[(i + 2) % nodes.length]]), life: .3 }); }
     return true;
   }
   if (effect.kind === 'sigil') {
-    if (effect.triggered) return true;
-    if (!effect.armed && world.nearby(effect, HERO.pentagon.triggerRadius + 60).some(e => e.hp > 0 && distanceSq(e, effect) <= (HERO.pentagon.triggerRadius + e.radius) ** 2)) { effect.armed = true; effect.delay = HERO.pentagon.delay; }
-    if (effect.armed && effect.delay <= 1e-8) { effect.triggered = true; hitArea(world, effect); effect.life = 0; }
+    if (effect !== world.state.effects.find(e => e.kind === 'sigil' && e.life > 0 && !e.triggered)) return true;
+    const path = weavePath(world.state);
+    for (const enemy of [...world.state.enemies]) {
+      if (enemy.hp <= 0 || (enemy.weaveHitAt ?? 0) > world.state.time || !touchesPath(enemy, enemy.radius + path.width, path.edges)) continue;
+      enemy.weaveHitAt = world.state.time + HERO.pentagon.hitInterval;
+      world.damage(enemy, skillDamage(world.state, 'sigil'), 'sigil');
+      enemy.slowTime = Math.max(enemy.slowTime, .6); enemy.slowFactor = Math.max(enemy.slowFactor, HERO.pentagon.slow * (enemy.kind === 'boss' ? .5 : 1));
+    }
     return true;
   }
   if (effect.delay > 1e-8 || effect.triggered) return true;

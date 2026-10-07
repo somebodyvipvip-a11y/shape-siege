@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import { ACTIVE, CONFIG, ENEMY_BEHAVIOR, EXPLOSION, SKILLS } from '../game/config';
 import type { Effect, Enemy, GameState, Vec } from '../game/types';
 import type { Settings } from '../storage';
+import { weavePath } from '../game/weave';
 
 export const PALETTE = { square: 0x65b8ff, circle: 0x63e2c3, triangle: 0xd0a2ff, diamond: 0xffd36a, pentagon: 0x76d4c8, hexagon: 0xffa568, enemy: 0xff7185, explosion: 0xffa568, xp: 0x91e8ff, gold: 0xffd36a };
 type Graphics = Phaser.GameObjects.Graphics;
@@ -120,6 +121,13 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
     drawNumber(danger, explosion.x, explosion.y - 26, explosion.remaining, 13);
   }
   // Friendly effects are intentionally low contrast and underneath enemies and warnings.
+  const weave = weavePath(state);
+  if (weave.closed) { g.fillStyle(PALETTE.pentagon, .035); g.fillPoints(weave.nodes, true); }
+  const weaveWidth = weave.width;
+  for (const [a, b] of weave.edges) {
+    g.lineStyle(weaveWidth * 2, PALETTE.pentagon, .08); g.lineBetween(a.x, a.y, b.x, b.y);
+    g.lineStyle(1.5, PALETTE.pentagon, .75); g.lineBetween(a.x, a.y, b.x, b.y);
+  }
   for (const effect of state.effects) {
     if (effect.owner !== 'player' || !visible(effect, Math.max(effect.radius, effect.length ?? 0))) continue;
     if (drawHeroEffect(g, effect, color)) continue;
@@ -195,7 +203,7 @@ export function drawWorld(g: Graphics, danger: Graphics, state: GameState, setti
   }
 }
 function drawHeroEffect(g: Graphics, effect: Effect, color: number): boolean {
-  if (!['beam', 'sweep', 'sigil', 'web', 'decoy'].includes(effect.kind)) return false;
+  if (!['beam', 'sweep', 'sigil', 'web', 'weave', 'decoy'].includes(effect.kind)) return false;
   if (effect.life <= 0) return true;
   const pending = effect.delay > 1e-8 && !effect.triggered;
   g.lineStyle(1.5, color, pending ? .7 : .8); g.fillStyle(color, pending ? .04 : .13);
@@ -209,13 +217,18 @@ function drawHeroEffect(g: Graphics, effect: Effect, color: number): boolean {
     const points = [{ x: effect.x, y: effect.y }, ...Array.from({ length: 17 }, (_, i) => ({ x: effect.x + Math.cos(angle - half + i * half / 8) * effect.radius, y: effect.y + Math.sin(angle - half + i * half / 8) * effect.radius }))];
     g.fillPoints(points, true); g.strokePoints(points, true);
   } else if (effect.kind === 'sigil') {
-    g.lineStyle(1, color, effect.armed ? .65 : .2); g.strokeCircle(effect.x, effect.y, effect.radius);
-    g.fillStyle(color, effect.armed ? .07 : .02); polygon(g, effect.x, effect.y, effect.radius, 5);
-    g.lineStyle(2, color, .8); polygon(g, effect.x, effect.y, 12, 5, -Math.PI / 2, false);
-    if (effect.armed) { g.beginPath(); g.arc(effect.x, effect.y, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, effect.delay / (effect.skillId === 'ultimate' ? 3 : .45))); g.strokePath(); }
+    g.fillStyle(color, .18); g.lineStyle(1.5, color, .8); polygon(g, effect.x, effect.y, 10, 5);
+    g.fillStyle(color, .8); g.fillCircle(effect.x, effect.y, 3);
   } else if (effect.kind === 'web') {
-    g.fillStyle(color, .025); polygon(g, effect.x, effect.y, effect.radius, 5);
-    for (let i = 0; i < 5; i++) g.lineBetween(effect.x, effect.y, effect.x + Math.cos(-Math.PI / 2 + i * Math.PI * 2 / 5) * 130, effect.y + Math.sin(-Math.PI / 2 + i * Math.PI * 2 / 5) * 130);
+    const points = effect.points!;
+    g.fillStyle(color, .06); g.fillPoints(points, true); g.lineStyle(2, color, .8); g.strokePoints(points, true);
+    for (let i = 0; i < 5; i++) g.lineBetween(points[i].x, points[i].y, points[(i + 2) % 5].x, points[(i + 2) % 5].y);
+    g.lineStyle(2, color, .5); g.beginPath(); g.arc(effect.x, effect.y, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, effect.delay / 3)); g.strokePath();
+  } else if (effect.kind === 'weave') {
+    const scale = Math.max(0, Math.min(1, effect.life / .3)), points = effect.points!;
+    g.lineStyle(3, color, .9);
+    for (let i = 0; i + 1 < points.length; i += 2) g.lineBetween(effect.x + (points[i].x - effect.x) * scale, effect.y + (points[i].y - effect.y) * scale,
+      effect.x + (points[i + 1].x - effect.x) * scale, effect.y + (points[i + 1].y - effect.y) * scale);
   } else { g.fillStyle(color, .08); g.lineStyle(1.5, color, .5); polygon(g, effect.x, effect.y, effect.radius, 4, 0); }
   return true;
 }

@@ -51,7 +51,7 @@ export function segmentsIntersect(a: Vec, b: Vec, c: Vec, d: Vec): boolean {
     (Math.abs(cdA) < 1e-8 && pointSegmentDistanceSq(a, c, d) < 1e-8) ||
     (Math.abs(cdB) < 1e-8 && pointSegmentDistanceSq(b, c, d) < 1e-8);
 }
-function pointInPolygon(point: Vec, vertices: Vec[]): boolean {
+export function pointInPolygon(point: Vec, vertices: Vec[]): boolean {
   let inside = false;
   for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
     const a = vertices[i], b = vertices[j];

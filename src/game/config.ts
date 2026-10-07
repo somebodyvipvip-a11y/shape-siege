@@ -58,7 +58,7 @@ export const SKILLS: Record<SkillId, { name: string; damage: number; cooldown: n
   'base-diamond': { name: '聚焦射线', damage: 58, cooldown: 1.05, range: 720, radius: 7, behavior: '射线宽度增加 5' },
   refraction: { name: '折射碎光', damage: 28, cooldown: 1.8, range: 240, radius: 5, behavior: '折射目标增加 2' },
   'base-pentagon': { name: '符点追击', damage: 28, cooldown: .8, range: 600, radius: 7, behavior: '额外发射一枚符点' },
-  sigil: { name: '延时法阵', damage: 75, cooldown: 1.6, range: 0, radius: 135, behavior: '法阵上限增加 2，爆炸范围增加 25' },
+  sigil: { name: '符点连阵', damage: 32, cooldown: .8, range: 360, radius: 7, behavior: '符点上限增加 2，连线半宽增加 4' },
   'base-hexagon': { name: '重锤横扫', damage: 64, cooldown: 1.1, range: 135, radius: 135, behavior: '横扫角度扩大 40 度' },
   fissure: { name: '震地裂纹', damage: 48, cooldown: 2.2, range: 290, radius: 28, behavior: '裂纹宽度增加 12，击退距离增加 30' },
   homing: { name: '追踪弹', damage: 24, cooldown: 1.2, range: 600, radius: 7, behavior: '命中后分裂两枚飞弹' },
@@ -89,7 +89,7 @@ export const ACTIVE = {
 } as const;
 export const HERO_MECHANICS = {
   diamond: { blinkDistance: 160, decoyDuration: 2, decoyRange: 300, beamLength: 900, beamWidth: 24, ultimateDamage: 230 },
-  pentagon: { sigilLimit: 6, sigilLife: 7, triggerRadius: 30, delay: .45, slow: .3, webRadius: 240, webDamage: 100 },
+  pentagon: { sigilLimit: 6, sigilLife: 8, nodeSpacing: 70, linkRange: 360, hitInterval: .65, slow: .3, collapseDamage: 120, webRadius: 240, webDamage: 150, webTickDamage: 24, webInterval: .5 },
   hexagon: { sweepAngle: Math.PI * 5 / 9, windup: .4, activeRadius: 175, activeDamage: 120, reduction: .25, overdriveCooldown: .55, overdriveRange: 60, finaleRadius: 210, finaleDamage: 120 },
 } as const;
 export const ULTIMATE = {

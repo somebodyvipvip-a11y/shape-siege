@@ -3,6 +3,7 @@ import { CHARACTERS, HERO_MECHANICS } from '../src/game/config';
 import { activateSkill, activateUltimate, updateEffects, updateSkills, updateUltimate } from '../src/game/skills';
 import { decoyTarget } from '../src/game/heroes';
 import { blocked } from '../src/game/spatial';
+import { weavePath } from '../src/game/weave';
 import { GameWorld } from '../src/game/world';
 import { SAVE_KEY, SaveStore } from '../src/storage';
 
@@ -49,29 +50,62 @@ describe('三个新英雄', () => {
     activateUltimate(beam); updateEffects(beam, .59); expect(enemy.hp).toBe(enemy.maxHp);
     updateEffects(beam, .01); expect(enemy.hp).toBeLessThan(enemy.maxHp);
   });
-  it('五边形法阵有上限，触发后延迟爆炸并减速，可手动引爆且不重复伤害', () => {
-    const world = new GameWorld('pentagon');
-    for (let i = 0; i < 20; i++) { world.state.player.skills.forEach(s => s.cooldown = 0); updateSkills(world, .01); }
-    expect(world.state.effects.filter(e => e.kind === 'sigil')).toHaveLength(HERO_MECHANICS.pentagon.sigilLimit);
-    const victim = target(world, 1600, 1646);
-    updateEffects(world, .01); expect(victim.hp).toBe(victim.maxHp);
-    updateEffects(world, .44); expect(victim.hp).toBe(victim.maxHp);
-    updateEffects(world, .01); expect(victim.hp).toBeLessThan(victim.maxHp); expect(victim.slowFactor).toBe(.3);
-    const hp = victim.hp; updateEffects(world, .01); expect(victim.hp).toBe(hp);
-    const manual = new GameWorld('pentagon'); updateSkills(manual, .01);
-    const nearby = target(manual, 1600, 1554); activateSkill(manual); expect(nearby.hp).toBeLessThan(nearby.maxHp);
-    const once = nearby.hp; updateEffects(manual, .01); expect(nearby.hp).toBe(once);
-    const fallback = new GameWorld('pentagon'); activateSkill(fallback);
-    expect(fallback.state.effects.filter(e => e.kind === 'sigil')).toHaveLength(1);
+  function nodes(world: GameWorld, points: [number, number][]) {
+    world.state.obstacles = []; world.state.player.lastDirection = { x: 0, y: 0 };
+    for (const [x, y] of points) {
+      Object.assign(world.state.player, { x, y }); world.state.player.skills.forEach(s => s.cooldown = 0); updateSkills(world, .01);
+    }
+  }
+  it('符点需移动才新增，上限滚动替换，强化增加容量，过期连线消失', () => {
+    const world = new GameWorld('pentagon'); nodes(world, Array.from({ length: 20 }, () => [1500, 1500]));
+    expect(weavePath(world.state).nodes).toHaveLength(1);
+    nodes(world, Array.from({ length: 10 }, (_, i) => [1500 + i * 80, 1500]));
+    expect(weavePath(world.state).nodes).toHaveLength(6); expect(weavePath(world.state).nodes[0].x).toBe(1820);
+    world.state.player.skills[1].enhanced = true;
+    nodes(world, [[2300, 1500], [2380, 1500]]); expect(weavePath(world.state).nodes).toHaveLength(8);
+    updateEffects(world, 8); expect(weavePath(world.state).edges).toHaveLength(0);
   });
-  it('五边形大招固定阵地、持续减速，结束时五个法阵爆炸', () => {
-    const world = new GameWorld('pentagon'); world.state.player.energy = 100;
-    const enemy = target(world, 1700); activateUltimate(world);
-    world.state.player.x = 1400;
-    updateEffects(world, .01); expect(enemy.hp).toBe(enemy.maxHp); expect(enemy.slowFactor).toBe(.3);
+  it('连线命中并减速，同一敌人多线重合不叠伤，离线不受伤，墙壁断线', () => {
+    const world = new GameWorld('pentagon'); nodes(world, [[1500, 1500], [1700, 1500], [1600, 1700]]);
+    const crossing = target(world, 1500, 1500), outside = target(world, 1850, 1600);
+    const edge = target(world, 1600, 1510); edge.radius = 1;
+    updateEffects(world, .01); expect(crossing.hp).toBe(10000 - 32); expect(crossing.slowFactor).toBe(.3);
+    updateEffects(world, .1); expect(crossing.hp).toBe(10000 - 32); expect(outside.hp).toBe(10000); expect(edge.hp).toBe(10000);
+    world.state.player.skills[1].enhanced = true;
+    updateEffects(world, .01); expect(edge.hp).toBe(9968); expect(weavePath(world.state).width).toBe(11);
+    world.state.time = .66; updateEffects(world, .01); expect(crossing.hp).toBe(10000 - 64);
+    const wall = new GameWorld('pentagon'); nodes(wall, [[1500, 1600], [1700, 1600]]);
+    wall.state.obstacles = [{ x: 1590, y: 1550, width: 20, height: 100 }];
+    const hidden = target(wall, 1650); updateEffects(wall, .01);
+    expect(weavePath(wall.state).edges).toHaveLength(0); expect(hidden.hp).toBe(10000);
+  });
+  it('闭环收束命中阵内一次，消耗符点，开链不能伤到阵内空白处', () => {
+    const world = new GameWorld('pentagon'); nodes(world, [[1500, 1500], [1700, 1500], [1600, 1700]]);
+    expect(weavePath(world.state).closed).toBe(true);
+    const inside = target(world, 1600, 1560), outside = target(world, 1850);
+    activateSkill(world); expect(inside.hp).toBe(10000 - 120); expect(outside.hp).toBe(10000);
+    expect(weavePath(world.state).nodes).toHaveLength(0); updateEffects(world, .01); expect(inside.hp).toBe(9880);
+    const open = new GameWorld('pentagon'); nodes(open, [[1400, 1500], [1600, 1500], [1800, 1500]]);
+    expect(weavePath(open.state).closed).toBe(false);
+    const untouched = target(open, 1600, 1620); activateSkill(open); expect(untouched.hp).toBe(10000);
+    const fallback = new GameWorld('pentagon'); activateSkill(fallback); expect(weavePath(fallback.state).nodes).toHaveLength(1);
+  });
+  it('交叉路径不闭环，超长连线断开，不误判整片阵内伤害', () => {
+    const world = new GameWorld('pentagon'); nodes(world, [[1500,1500],[1700,1700],[1500,1700],[1700,1500]]);
+    expect(weavePath(world.state).closed).toBe(false);
+    nodes(world, [[2300,1500]]); expect(weavePath(world.state).edges).toHaveLength(3);
+  });
+  it('五芒阵固定位置，按五边形持续伤害和减速，结束爆发一次，首领减速减半', () => {
+    const world = new GameWorld('pentagon'); world.state.obstacles = []; world.state.player.energy = 100;
+    const enemy = target(world, 1600), outside = target(world, 1835); outside.radius = 1;
+    const boss = world.spawnEnemy('boss', { x: 1600, y: 1650 })!;
+    activateUltimate(world); world.state.player.x = 1200;
     expect(world.state.effects.find(e => e.kind === 'web')!.x).toBe(1600);
-    updateEffects(world, 2.99); expect(enemy.hp).toBeLessThan(enemy.maxHp);
-    expect(world.state.effects.filter(e => e.kind === 'sigil')).toHaveLength(0);
+    updateEffects(world, .49); expect(enemy.hp).toBe(10000); expect(boss.slowFactor).toBe(.15);
+    updateEffects(world, .01); expect(enemy.hp).toBe(10000 - 24); expect(enemy.slowFactor).toBe(.3); expect(outside.hp).toBe(10000);
+    for (let i = 0; i < 5; i++) updateEffects(world, .5);
+    expect(enemy.hp).toBe(10000 - 24 * 5 - 150); const hp = enemy.hp;
+    updateEffects(world, .01); expect(enemy.hp).toBe(hp); expect(world.state.effects.some(e => e.kind === 'sigil')).toBe(false);
   });
   it('六边形横扫按扇形命中，蓄力期间减伤，大招提高频率并在结束时震地', () => {
     const world = new GameWorld('hexagon');
@@ -92,7 +126,7 @@ describe('三个新英雄', () => {
   it('暂停冻结新技能预警与法阵，首领通关清场移除特效', () => {
     const world = new GameWorld('pentagon'); updateSkills(world, .01);
     const trap = world.state.effects.find(e => e.kind === 'sigil')!;
-    world.setPaused(true); world.update(1); expect(trap.life).toBe(7);
+    world.setPaused(true); world.update(1); expect(trap.life).toBe(8);
     world.setPaused(false); const boss = world.spawnEnemy('boss', { x: 1800, y: 1600 })!; boss.hp = 0;
     world.update(1 / 60); expect(world.state.gift).toHaveLength(3); expect(world.state.effects).toHaveLength(0);
   });
